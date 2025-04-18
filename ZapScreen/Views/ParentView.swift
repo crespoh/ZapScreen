@@ -6,9 +6,6 @@ struct ParentView: View {
     @StateObject private var settings = AppSettings()
     @State private var showingAppPicker = false
     @State private var showingEarningAppPicker = false
-    @State private var showingAddChild = false
-    @State private var newChildName = ""
-    @State private var newChildDeviceId = ""
     
     private func appRestrictionsBinding(for child: Child) -> Binding<FamilyActivitySelection> {
         Binding(
@@ -59,10 +56,6 @@ struct ParentView: View {
                             Text(child.name).tag(child.id as UUID?)
                         }
                     }
-                    
-                    Button("Add New Child") {
-                        showingAddChild = true
-                    }
                 }
                 
                 if let child = settings.selectedChild {
@@ -99,10 +92,6 @@ struct ParentView: View {
                         ForEach(child.shieldOptions, id: \.self) { option in
                             Text("\(Int(option / 60)) minutes")
                         }
-                        
-                        Button("Add New Option") {
-                            // Add new shield option
-                        }
                     }
                     
                     Section(header: Text("Time Requests")) {
@@ -125,28 +114,6 @@ struct ParentView: View {
             .navigationTitle("Parent Controls")
             .onChange(of: settings.selectedChild) { _, _ in
                 settings.setAppRestrictions()
-            }
-            .sheet(isPresented: $showingAddChild) {
-                NavigationView {
-                    Form {
-                        Section(header: Text("Child Information")) {
-                            TextField("Child's Name", text: $newChildName)
-                            TextField("Device Identifier", text: $newChildDeviceId)
-                        }
-                    }
-                    .navigationTitle("Add Child")
-                    .navigationBarItems(
-                        leading: Button("Cancel") {
-                            showingAddChild = false
-                        },
-                        trailing: Button("Add") {
-                            settings.addChild(name: newChildName, deviceIdentifier: newChildDeviceId)
-                            newChildName = ""
-                            newChildDeviceId = ""
-                            showingAddChild = false
-                        }
-                    )
-                }
             }
         }
     }

@@ -1,11 +1,17 @@
 import Foundation
 import FamilyControls
 import ManagedSettings
+import UIKit
+import SwiftUI
 
+@MainActor
 class AppSettings: ObservableObject {
     @Published var isParentMode: Bool = false
     @Published var children: [Child] = []
     @Published var selectedChildId: UUID?
+    @Published var currentDeviceIdentifier: String?
+    @Published var authorizationStatus: AuthorizationStatus = .notDetermined
+    @Published var isAuthorized = false
     
     var selectedChild: Child? {
         children.first { $0.id == selectedChildId }
@@ -17,13 +23,65 @@ class AppSettings: ObservableObject {
     @Published var earningRates: [String: TimeInterval] = [:] // App bundle ID to earning rate (minutes per usage)
     @Published var shieldOptions: [TimeInterval] = [600, 1200, 1800] // 10, 20, 30 minutes in seconds
     
-    let store = ManagedSettingsStore()
-    let center = AuthorizationCenter.shared
+    private let center = AuthorizationCenter.shared
+    private let store = ManagedSettingsStore()
     
     init() {
-        // Check if device is a child device
         Task {
-            await checkDeviceType()
+            await requestAuthorization()
+        }
+    }
+    
+    func requestAuthorization() async {
+        do {
+            try await center.requestAuthorization(for: .individual)
+            isAuthorized = true
+            await fetchChildren()
+        } catch {
+            print("Error requesting authorization: \(error)")
+        }
+    }
+    
+    func fetchChildren() async {
+        do {
+            let familyMembers = try await center.requestFamilyMembers()
+            
+            children = familyMembers.map { member in
+                Child(
+                    name: member.displayName,
+                    deviceIdentifier: member.deviceIdentifier ?? "",
+                    earningApps: EarningApps(applicationTokens: [], categoryTokens: [])
+                )
+            }
+        } catch {
+            print("Error fetching children: \(error)")
+        }
+    }
+    
+    private func checkAuthorizationStatus() async {
+        let status = await center.authorizationStatus
+        await MainActor.run {
+            authorizationStatus = status
+        }
+    }
+    
+    private func getCurrentDeviceIdentifier() async {
+        // Get the current device's identifier
+        if let identifier = UIDevice.current.identifierForVendor?.uuidString {
+            await MainActor.run {
+                currentDeviceIdentifier = identifier
+                // If this is a child device, add it to the children list
+                if !isParentMode {
+                    let child = Child(
+                        name: UIDevice.current.name,
+                        deviceIdentifier: identifier
+                    )
+                    if !children.contains(where: { $0.deviceIdentifier == identifier }) {
+                        children.append(child)
+                        selectedChildId = child.id
+                    }
+                }
+            }
         }
     }
     
@@ -45,10 +103,20 @@ class AppSettings: ObservableObject {
     }
     
     func addChild(name: String, deviceIdentifier: String) {
-        let child = Child(name: name, deviceIdentifier: deviceIdentifier)
-        children.append(child)
+        let newChild = Child(
+            name: name,
+            deviceIdentifier: deviceIdentifier
+        )
+        children.append(newChild)
         if selectedChildId == nil {
-            selectedChildId = child.id
+            selectedChildId = newChild.id
+        }
+    }
+    
+    func removeChild(_ child: Child) {
+        children.removeAll { $0.id == child.id }
+        if selectedChildId == child.id {
+            selectedChildId = children.first?.id
         }
     }
     
@@ -66,14 +134,18 @@ class AppSettings: ObservableObject {
         }
     }
     
-    func setEarningApps() {
-        guard let child = selectedChild else { return }
-        // Set earning apps configuration
-        // This will be used by the Device Activity Monitor
+    func setEarningApps(for child: Child, selection: FamilyActivitySelection) {
+        guard let index = children.firstIndex(where: { $0.id == child.id }) else { return }
+        children[index].earningApps = EarningApps(
+            applicationTokens: selection.applicationTokens,
+            categoryTokens: selection.categoryTokens
+        )
     }
     
     func requestAdditionalTime(minutes: TimeInterval, for app: String) {
-        // Handle additional time request from child
+        // This function will be called from the child device
+        // In a real implementation, this would send a notification to the parent device
+        print("Requesting \(minutes) additional minutes for \(app)")
     }
     
     func approveTimeRequest(minutes: TimeInterval, for app: String) {
@@ -86,5 +158,22 @@ class AppSettings: ObservableObject {
         if let index = children.firstIndex(where: { $0.id == child.id }) {
             children[index] = updatedChild
         }
+    }
+    
+    // Child device specific functions
+    func getCurrentChild() -> Child? {
+        guard !isParentMode,
+              let deviceIdentifier = currentDeviceIdentifier else { return nil }
+        return children.first { $0.deviceIdentifier == deviceIdentifier }
+    }
+    
+    func getRemainingTime(for app: String) -> TimeInterval {
+        guard let child = getCurrentChild() else { return 0 }
+        return child.timeLimits[app] ?? 0
+    }
+    
+    func getEarningRate(for app: String) -> TimeInterval {
+        guard let child = getCurrentChild() else { return 0 }
+        return child.earningRates[app] ?? 0
     }
 } 
