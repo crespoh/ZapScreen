@@ -4,6 +4,13 @@ import ManagedSettings
 
 class AppSettings: ObservableObject {
     @Published var isParentMode: Bool = false
+    @Published var children: [Child] = []
+    @Published var selectedChildId: UUID?
+    
+    var selectedChild: Child? {
+        children.first { $0.id == selectedChildId }
+    }
+    
     @Published var selectedApps: FamilyActivitySelection = FamilyActivitySelection()
     @Published var earningApps: FamilyActivitySelection = FamilyActivitySelection()
     @Published var timeLimits: [String: TimeInterval] = [:] // App bundle ID to time limit
@@ -37,13 +44,30 @@ class AppSettings: ObservableObject {
         }
     }
     
+    func addChild(name: String, deviceIdentifier: String) {
+        let child = Child(name: name, deviceIdentifier: deviceIdentifier)
+        children.append(child)
+        if selectedChildId == nil {
+            selectedChildId = child.id
+        }
+    }
+    
     func setAppRestrictions() {
-        // Set application restrictions
-        let applications = selectedApps.applicationTokens.map { Application(token: $0) }
-        store.application.blockedApplications = Set(applications)
+        guard let child = selectedChild else { return }
+        let store = ManagedSettingsStore(named: .init(child.deviceIdentifier))
+        
+        // Clear existing restrictions
+        store.clearAllSettings()
+        
+        // Set new restrictions
+        if !child.appRestrictions.applicationTokens.isEmpty {
+            store.shield.applications = child.appRestrictions.applicationTokens
+            store.shield.applicationCategories = ShieldSettings.ActivityCategoryPolicy.specific(child.appRestrictions.categoryTokens)
+        }
     }
     
     func setEarningApps() {
+        guard let child = selectedChild else { return }
         // Set earning apps configuration
         // This will be used by the Device Activity Monitor
     }
@@ -53,9 +77,14 @@ class AppSettings: ObservableObject {
     }
     
     func approveTimeRequest(minutes: TimeInterval, for app: String) {
+        guard let child = selectedChild,
+              let currentLimit = child.timeLimits[app] else { return }
+        
         // Approve time request from parent
-        if let currentLimit = timeLimits[app] {
-            timeLimits[app] = currentLimit + (minutes * 60)
+        var updatedChild = child
+        updatedChild.timeLimits[app] = currentLimit + (minutes * 60)
+        if let index = children.firstIndex(where: { $0.id == child.id }) {
+            children[index] = updatedChild
         }
     }
 } 
