@@ -4,44 +4,48 @@ import ManagedSettings
 
 struct ParentView: View {
     @StateObject private var settings = AppSettings()
-    @State private var showingAppPicker = false
-    @State private var showingEarningAppPicker = false
+    @State private var selection = FamilyActivitySelection()
+    @State private var showingPicker = false
     
-    private func appRestrictionsBinding(for child: Child) -> Binding<FamilyActivitySelection> {
-        Binding(
-            get: { child.appRestrictions },
-            set: { newValue in
-                if let index = settings.children.firstIndex(where: { $0.id == child.id }) {
-                    var updatedChild = child
-                    updatedChild.appRestrictions = newValue
-                    settings.children[index] = updatedChild
-                }
-            }
-        )
+    private var currentChild: Child? {
+        settings.getCurrentChild()
     }
     
-    private func earningAppsBinding(for child: Child) -> Binding<FamilyActivitySelection> {
-        Binding(
-            get: { child.earningApps },
-            set: { newValue in
-                if let index = settings.children.firstIndex(where: { $0.id == child.id }) {
-                    var updatedChild = child
-                    updatedChild.earningApps = newValue
-                    settings.children[index] = updatedChild
-                }
-            }
-        )
+    private var childEarningApps: FamilyActivitySelection? {
+        guard let child = currentChild else { return nil }
+        var selection = FamilyActivitySelection()
+        selection.applicationTokens = child.earningApps.applicationTokens
+        selection.categoryTokens = child.earningApps.categoryTokens
+        return selection
     }
     
-    private func earningRateBinding(for child: Child, token: ApplicationToken) -> Binding<TimeInterval> {
-        let appIdentifier = String(describing: token)
+    private var earningApps: [Application] {
+        guard let apps = childEarningApps else { return [] }
+        return Array(apps.applicationTokens).map { token in
+            Application(token: token)
+        }
+    }
+    
+    private func earningRate(for app: Application) -> TimeInterval {
+        let bundleId: String = app.bundleIdentifier ?? ""
+        return settings.getEarningRate(for: bundleId)
+    }
+    
+    private func appDisplayName(_ app: Application) -> String {
+        app.localizedDisplayName ?? String(describing: app.token)
+    }
+    
+    private func rateBinding(for app: Application) -> Binding<TimeInterval> {
+        let bundleId: String = app.bundleIdentifier ?? ""
         return Binding(
-            get: { child.earningRates[appIdentifier] ?? 0 },
+            get: { settings.getEarningRate(for: bundleId) },
             set: { newValue in
-                if let index = settings.children.firstIndex(where: { $0.id == child.id }) {
+                if let child = currentChild {
                     var updatedChild = child
-                    updatedChild.earningRates[appIdentifier] = newValue
-                    settings.children[index] = updatedChild
+                    updatedChild.earningRates[bundleId] = newValue
+                    if let index = settings.children.firstIndex(where: { $0.id == child.id }) {
+                        settings.children[index] = updatedChild
+                    }
                 }
             }
         )
@@ -49,71 +53,39 @@ struct ParentView: View {
     
     var body: some View {
         NavigationView {
-            Form {
-                Section(header: Text("Children")) {
-                    Picker("Select Child", selection: $settings.selectedChildId) {
-                        ForEach(settings.children) { child in
-                            Text(child.name).tag(child.id as UUID?)
+            List {
+                Section(header: Text("Earning Apps")) {
+                    ForEach(earningApps, id: \.token) { app in
+                        let rate = earningRate(for: app)
+                        HStack {
+                            Text(appDisplayName(app))
+                            Spacer()
+                            Text("\(Int(rate)) minutes per usage")
                         }
                     }
+                    
+                    Button("Select Earning Apps") {
+                        showingPicker = true
+                    }
+                    .familyActivityPicker(isPresented: $showingPicker, selection: $selection)
                 }
                 
-                if let child = settings.selectedChild {
-                    Section(header: Text("App Restrictions")) {
-                        Button("Select Apps to Restrict") {
-                            showingAppPicker = true
-                        }
-                        .familyActivityPicker(isPresented: $showingAppPicker,
-                                            selection: appRestrictionsBinding(for: child))
-                    }
-                    
-                    Section(header: Text("Earning Apps")) {
-                        Button("Select Apps for Earning Time") {
-                            showingEarningAppPicker = true
-                        }
-                        .familyActivityPicker(isPresented: $showingEarningAppPicker,
-                                            selection: earningAppsBinding(for: child))
-                        
-                        let tokens = child.earningApps.applicationTokens
-                        ForEach(Array(tokens), id: \.self) { token in
-                            HStack {
-                                Text(String(describing: token))
-                                Spacer()
-                                TextField("Minutes per usage", 
-                                         value: earningRateBinding(for: child, token: token),
-                                         format: .number)
+                Section(header: Text("Earning Rates")) {
+                    ForEach(earningApps, id: \.token) { app in
+                        HStack {
+                            Text(appDisplayName(app))
+                            Spacer()
+                            TextField("Minutes", value: rateBinding(for: app), formatter: NumberFormatter())
                                 .keyboardType(.numberPad)
+                                .frame(width: 60)
                                 .multilineTextAlignment(.trailing)
-                            }
-                        }
-                    }
-                    
-                    Section(header: Text("Shield Options")) {
-                        ForEach(child.shieldOptions, id: \.self) { option in
-                            Text("\(Int(option / 60)) minutes")
-                        }
-                    }
-                    
-                    Section(header: Text("Time Requests")) {
-                        // List of pending time requests from children
-                        ForEach(0..<3) { _ in
-                            HStack {
-                                Text("YouTube - 30 minutes")
-                                Spacer()
-                                Button("Approve") {
-                                    // Handle approval
-                                }
-                                Button("Decline") {
-                                    // Handle decline
-                                }
-                            }
                         }
                     }
                 }
             }
-            .navigationTitle("Parent Controls")
-            .onChange(of: settings.selectedChild) { _, _ in
-                settings.setAppRestrictions()
+            .navigationTitle("Parent View")
+            .onChange(of: selection) { oldValue, newValue in
+                settings.setEarningApps(newValue)
             }
         }
     }

@@ -18,7 +18,7 @@ class AppSettings: ObservableObject {
     }
     
     @Published var selectedApps: FamilyActivitySelection = FamilyActivitySelection()
-    @Published var earningApps: FamilyActivitySelection = FamilyActivitySelection()
+    @Published var selectedEarningApps: FamilyActivitySelection = FamilyActivitySelection()
     @Published var timeLimits: [String: TimeInterval] = [:] // App bundle ID to time limit
     @Published var earningRates: [String: TimeInterval] = [:] // App bundle ID to earning rate (minutes per usage)
     @Published var shieldOptions: [TimeInterval] = [600, 1200, 1800] // 10, 20, 30 minutes in seconds
@@ -44,25 +44,20 @@ class AppSettings: ObservableObject {
     
     func fetchChildren() async {
         do {
-            let familyMembers = try await center.requestFamilyMembers()
-            
-            children = familyMembers.map { member in
-                Child(
-                    name: member.displayName,
-                    deviceIdentifier: member.deviceIdentifier ?? "",
-                    earningApps: EarningApps(applicationTokens: [], categoryTokens: [])
-                )
-            }
+            try await center.requestAuthorization(for: .individual)
+            // For now, we'll create a dummy child since we can't get family members directly
+            let child = Child(
+                name: "Child Device",
+                deviceIdentifier: UIDevice.current.identifierForVendor?.uuidString ?? ""
+            )
+            children = [child]
         } catch {
             print("Error fetching children: \(error)")
         }
     }
     
     private func checkAuthorizationStatus() async {
-        let status = await center.authorizationStatus
-        await MainActor.run {
-            authorizationStatus = status
-        }
+        authorizationStatus = center.authorizationStatus
     }
     
     private func getCurrentDeviceIdentifier() async {
@@ -134,12 +129,24 @@ class AppSettings: ObservableObject {
         }
     }
     
-    func setEarningApps(for child: Child, selection: FamilyActivitySelection) {
-        guard let index = children.firstIndex(where: { $0.id == child.id }) else { return }
-        children[index].earningApps = EarningApps(
-            applicationTokens: selection.applicationTokens,
-            categoryTokens: selection.categoryTokens
-        )
+    func setEarningApps(_ selection: FamilyActivitySelection) {
+        guard let child = selectedChild else { return }
+        selectedEarningApps = selection
+        if let index = children.firstIndex(where: { $0.id == child.id }) {
+            var updatedChild = children[index]
+            updatedChild.earningApps = EarningApps(
+                applicationTokens: selection.applicationTokens,
+                categoryTokens: selection.categoryTokens
+            )
+            children[index] = updatedChild
+            saveChildren()
+        }
+    }
+    
+    private func saveChildren() {
+        // In a real app, you would save this to UserDefaults or a database
+        // For now, we'll just print that we're saving
+        print("Saving children data")
     }
     
     func requestAdditionalTime(minutes: TimeInterval, for app: String) {

@@ -5,35 +5,26 @@ import FamilyControls
 class ZapScreenDeviceActivityMonitor: DeviceActivityMonitor {
     let store = ManagedSettingsStore()
     let center = AuthorizationCenter.shared
-    let selection = FamilyActivitySelection()
     
     override func intervalDidStart(for activity: DeviceActivityName) {
         super.intervalDidStart(for: activity)
         
-        // Set up the application restrictions
-        let applications = selection.applicationTokens.map { Application(token: $0) }
-        store.application.blockedApplications = Set(applications)
-        
-        // Get the current child's restrictions
         Task {
-            if let status = try? await center.authorizationStatus,
-               status == .approved {
-                // Set up shield for restricted apps
+            do {
+                try await center.requestAuthorization(for: .individual)
+                let selection = FamilyActivitySelection()
                 store.shield.applications = selection.applicationTokens
-                store.shield.applicationCategories = .specific(selection.categoryTokens)
+                store.shield.applicationCategories = ShieldSettings.ActivityCategoryPolicy.specific(selection.categoryTokens)
+            } catch {
+                print("Error setting up shield: \(error)")
             }
         }
     }
     
     override func intervalDidEnd(for activity: DeviceActivityName) {
         super.intervalDidEnd(for: activity)
-        
-        // Remove the restrictions when the interval ends
-        store.application.blockedApplications = Set()
-        
-        // Remove shield when interval ends
         store.shield.applications = []
-        store.shield.applicationCategories = .specific([])
+        store.shield.applicationCategories = ShieldSettings.ActivityCategoryPolicy.specific([])
     }
     
     override func eventDidReachThreshold(_ event: DeviceActivityEvent.Name, activity: DeviceActivityName) {

@@ -11,8 +11,8 @@ struct ContentView: View {
             if isLoading {
                 ProgressView("Detecting device type...")
                     .onAppear {
-                        // Wait a moment for the device type detection to complete
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                        Task {
+                            await determineDeviceType()
                             isLoading = false
                         }
                     }
@@ -24,6 +24,22 @@ struct ContentView: View {
                 } else {
                     ChildView()
                 }
+            }
+        }
+    }
+    
+    private func determineDeviceType() async {
+        do {
+            // Try to request authorization for child mode
+            try await AuthorizationCenter.shared.requestAuthorization(for: .individual)
+            // If successful, this is a child device
+            await MainActor.run {
+                settings.isParentMode = false
+            }
+        } catch {
+            // If authorization fails, show mode selection
+            await MainActor.run {
+                showingModeSelection = true
             }
         }
     }

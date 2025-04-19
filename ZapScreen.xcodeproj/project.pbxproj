@@ -78,11 +78,22 @@
 			);
 			target = 370EA20B2DB25873001466A3 /* ShieldConfiguration */;
 		};
+		370EA2212DB2A93B001466A3 /* Exceptions for "ZapScreen" folder in "ZapScreen" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				DeviceActivityMonitor/Info.plist,
+				ShieldConfiguration/Info.plist,
+			);
+			target = 370EA1A32DB1DB5D001466A3 /* ZapScreen */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		370EA1A62DB1DB5D001466A3 /* ZapScreen */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				370EA2212DB2A93B001466A3 /* Exceptions for "ZapScreen" folder in "ZapScreen" target */,
+			);
 			path = ZapScreen;
 			sourceTree = "<group>";
 		};
@@ -469,6 +480,7 @@
 				DEVELOPMENT_TEAM = HMN5RUX388;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ZapScreen/ZapScreen-Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -500,6 +512,7 @@
 				DEVELOPMENT_TEAM = HMN5RUX388;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ZapScreen/ZapScreen-Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
