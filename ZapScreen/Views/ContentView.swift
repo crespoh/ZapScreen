@@ -29,15 +29,18 @@ struct ContentView: View {
     }
     
     private func determineDeviceType() async {
-        do {
-            // Try to request authorization for child mode
-            try await AuthorizationCenter.shared.requestAuthorization(for: .individual)
-            // If successful, this is a child device
+        // Wait for authorization to complete
+        while settings.authorizationStatus == .notDetermined {
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
+        }
+        
+        // If authorization was successful, this is a child device
+        if settings.isAuthorized {
             await MainActor.run {
                 settings.isParentMode = false
             }
-        } catch {
-            // If authorization fails, show mode selection
+        } else {
+            // If authorization failed, show mode selection
             await MainActor.run {
                 showingModeSelection = true
             }

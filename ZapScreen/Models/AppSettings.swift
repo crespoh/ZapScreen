@@ -34,11 +34,31 @@ class AppSettings: ObservableObject {
     
     func requestAuthorization() async {
         do {
+            // First check if we're already authorized
+            let status = center.authorizationStatus
+            if status == .approved {
+                isAuthorized = true
+                await fetchChildren()
+                return
+            }
+            
+            // If not authorized, try to request authorization
             try await center.requestAuthorization(for: .individual)
             isAuthorized = true
             await fetchChildren()
         } catch {
             print("Error requesting authorization: \(error)")
+            // If there's a conflict, try to resolve it
+            if error.localizedDescription.contains("authorizationConflict") {
+                do {
+                    // Try to request authorization again
+                    try await center.requestAuthorization(for: .individual)
+                    isAuthorized = true
+                    await fetchChildren()
+                } catch {
+                    print("Error resolving authorization conflict: \(error)")
+                }
+            }
         }
     }
     

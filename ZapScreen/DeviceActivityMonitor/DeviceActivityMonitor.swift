@@ -5,18 +5,21 @@ import FamilyControls
 class ZapScreenDeviceActivityMonitor: DeviceActivityMonitor {
     let store = ManagedSettingsStore()
     let center = AuthorizationCenter.shared
+    @MainActor private let settings = AppSettings()
     
     override func intervalDidStart(for activity: DeviceActivityName) {
         super.intervalDidStart(for: activity)
         
-        Task {
-            do {
-                try await center.requestAuthorization(for: .individual)
+        Task { @MainActor in
+            // Wait for authorization to complete
+            while settings.authorizationStatus == .notDetermined {
+                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
+            }
+            
+            if settings.isAuthorized {
                 let selection = FamilyActivitySelection()
                 store.shield.applications = selection.applicationTokens
                 store.shield.applicationCategories = ShieldSettings.ActivityCategoryPolicy.specific(selection.categoryTokens)
-            } catch {
-                print("Error setting up shield: \(error)")
             }
         }
     }

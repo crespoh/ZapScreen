@@ -8,14 +8,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     let store = ManagedSettingsStore()
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Request Family Controls authorization
-        Task {
-            do {
-                try await center.requestAuthorization(for: .individual)
-            } catch {
-                print("Failed to request authorization: \(error)")
-            }
-        }
         return true
     }
     
