@@ -5,9 +5,9 @@
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionPointIdentifier</key>
-		<string>com.apple.familycontrols.shieldconfiguration</string>
+		<string>com.apple.deviceactivity.monitor-extension</string>
 		<key>NSExtensionPrincipalClass</key>
-		<string>$(PRODUCT_MODULE_NAME).CustomShieldConfigurationProvider</string>
+		<string>$(PRODUCT_MODULE_NAME).DeviceActivityMonitorExtension</string>
 	</dict>
 </dict>
 </plist>
