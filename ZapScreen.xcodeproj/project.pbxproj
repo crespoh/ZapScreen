@@ -122,12 +122,20 @@
 			);
 			target = 370EA2C42DB7C333001466A3 /* ZapScreenDeviceActivityMonitor */;
 		};
+		37FFC5102DB88EAC00FCC13A /* Exceptions for "ZapScreen" folder in "ZapScreen" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"ZapScreen-Info.plist",
+			);
+			target = 370EA1A32DB1DB5D001466A3 /* ZapScreen */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		370EA1A62DB1DB5D001466A3 /* ZapScreen */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
+				37FFC5102DB88EAC00FCC13A /* Exceptions for "ZapScreen" folder in "ZapScreen" target */,
 				370EA2D62DB7C698001466A3 /* Exceptions for "ZapScreen" folder in "ZapScreenShieldAction" target */,
 				370EA2D72DB7C698001466A3 /* Exceptions for "ZapScreen" folder in "ZapScreenShieldConfiguration" target */,
 				370EA2D82DB7C698001466A3 /* Exceptions for "ZapScreen" folder in "ZapScreenDeviceActivityMonitor" target */,
