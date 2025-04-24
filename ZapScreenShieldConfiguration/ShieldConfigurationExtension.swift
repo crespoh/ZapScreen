@@ -2,7 +2,7 @@
 //  ShieldConfigurationExtension.swift
 //  ZapScreenShieldConfiguration
 //
-//  Created by tongteknai on 22/4/25.
+//  Created by tongteknai on 23/4/25.
 //
 
 import ManagedSettings

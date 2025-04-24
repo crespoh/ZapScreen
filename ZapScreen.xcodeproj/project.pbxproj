@@ -7,13 +7,17 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		370EA2A12DB7C303001466A3 /* ManagedSettings.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 370EA20E2DB25873001466A3 /* ManagedSettings.framework */; };
 		370EA2A92DB7C303001466A3 /* ZapScreenShieldAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 370EA2A02DB7C303001466A3 /* ZapScreenShieldAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		370EA2B32DB7C319001466A3 /* ManagedSettings.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 370EA20E2DB25873001466A3 /* ManagedSettings.framework */; };
-		370EA2B42DB7C319001466A3 /* ManagedSettingsUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 370EA2102DB25873001466A3 /* ManagedSettingsUI.framework */; };
-		370EA2BC2DB7C319001466A3 /* ZapScreenShieldConfiguration.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 370EA2B22DB7C319001466A3 /* ZapScreenShieldConfiguration.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		370EA2C62DB7C333001466A3 /* DeviceActivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 370EA2842DB7AA6C001466A3 /* DeviceActivity.framework */; };
 		370EA2CE2DB7C333001466A3 /* ZapScreenDeviceActivityMonitor.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 370EA2C52DB7C333001466A3 /* ZapScreenDeviceActivityMonitor.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		371304A22DB8E709008F1E71 /* ManagedSettings.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 370EA20E2DB25873001466A3 /* ManagedSettings.framework */; };
+		371304A32DB8E709008F1E71 /* ManagedSettings.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 370EA20E2DB25873001466A3 /* ManagedSettings.framework */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		371304AA2DB8E712008F1E71 /* DeviceActivity.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 370EA2842DB7AA6C001466A3 /* DeviceActivity.framework */; };
+		371304AB2DB8E712008F1E71 /* DeviceActivity.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 370EA2842DB7AA6C001466A3 /* DeviceActivity.framework */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		371304BB2DB9253D008F1E71 /* ZapScreenShieldConfiguration.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 371304B12DB9253D008F1E71 /* ZapScreenShieldConfiguration.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		3721C1602DB92FB600224280 /* ManagedSettings.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 370EA20E2DB25873001466A3 /* ManagedSettings.framework */; };
+		3721C1612DB92FB600224280 /* ManagedSettings.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 370EA20E2DB25873001466A3 /* ManagedSettings.framework */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		3721C1632DB92FB700224280 /* ManagedSettingsUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 370EA2102DB25873001466A3 /* ManagedSettingsUI.framework */; };
+		3721C1642DB92FB700224280 /* ManagedSettingsUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 370EA2102DB25873001466A3 /* ManagedSettingsUI.framework */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -24,19 +28,19 @@
 			remoteGlobalIDString = 370EA29F2DB7C303001466A3;
 			remoteInfo = ZapScreenShieldAction;
 		};
-		370EA2BA2DB7C319001466A3 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 370EA19C2DB1DB5D001466A3 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 370EA2B12DB7C319001466A3;
-			remoteInfo = ZapScreenShieldConfiguration;
-		};
 		370EA2CC2DB7C333001466A3 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 370EA19C2DB1DB5D001466A3 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 370EA2C42DB7C333001466A3;
 			remoteInfo = ZapScreenDeviceActivityMonitor;
+		};
+		371304B92DB9253D008F1E71 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 370EA19C2DB1DB5D001466A3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 371304B02DB9253D008F1E71;
+			remoteInfo = ZapScreenShieldConfiguration;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -57,11 +61,45 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				370EA2BC2DB7C319001466A3 /* ZapScreenShieldConfiguration.appex in Embed Foundation Extensions */,
 				370EA2CE2DB7C333001466A3 /* ZapScreenDeviceActivityMonitor.appex in Embed Foundation Extensions */,
+				371304BB2DB9253D008F1E71 /* ZapScreenShieldConfiguration.appex in Embed Foundation Extensions */,
 				370EA2A92DB7C303001466A3 /* ZapScreenShieldAction.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		371304A42DB8E709008F1E71 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				371304A32DB8E709008F1E71 /* ManagedSettings.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		371304AC2DB8E712008F1E71 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				371304AB2DB8E712008F1E71 /* DeviceActivity.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3721C1622DB92FB600224280 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				3721C1612DB92FB600224280 /* ManagedSettings.framework in Embed Frameworks */,
+				3721C1642DB92FB700224280 /* ManagedSettingsUI.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -72,8 +110,8 @@
 		370EA2102DB25873001466A3 /* ManagedSettingsUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ManagedSettingsUI.framework; path = System/Library/Frameworks/ManagedSettingsUI.framework; sourceTree = SDKROOT; };
 		370EA2842DB7AA6C001466A3 /* DeviceActivity.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = DeviceActivity.framework; path = System/Library/Frameworks/DeviceActivity.framework; sourceTree = SDKROOT; };
 		370EA2A02DB7C303001466A3 /* ZapScreenShieldAction.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ZapScreenShieldAction.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		370EA2B22DB7C319001466A3 /* ZapScreenShieldConfiguration.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ZapScreenShieldConfiguration.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		370EA2C52DB7C333001466A3 /* ZapScreenDeviceActivityMonitor.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ZapScreenDeviceActivityMonitor.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		371304B12DB9253D008F1E71 /* ZapScreenShieldConfiguration.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ZapScreenShieldConfiguration.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -83,13 +121,6 @@
 				Info.plist,
 			);
 			target = 370EA29F2DB7C303001466A3 /* ZapScreenShieldAction */;
-		};
-		370EA2BD2DB7C319001466A3 /* Exceptions for "ZapScreenShieldConfiguration" folder in "ZapScreenShieldConfiguration" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 370EA2B12DB7C319001466A3 /* ZapScreenShieldConfiguration */;
 		};
 		370EA2CF2DB7C333001466A3 /* Exceptions for "ZapScreenDeviceActivityMonitor" folder in "ZapScreenDeviceActivityMonitor" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -103,24 +134,34 @@
 			membershipExceptions = (
 				Models/ApplicationProfile.swift,
 				Models/DataBase.swift,
+				Models/ShieldManager.swift,
 			);
 			target = 370EA29F2DB7C303001466A3 /* ZapScreenShieldAction */;
-		};
-		370EA2D72DB7C698001466A3 /* Exceptions for "ZapScreen" folder in "ZapScreenShieldConfiguration" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Models/ApplicationProfile.swift,
-				Models/DataBase.swift,
-			);
-			target = 370EA2B12DB7C319001466A3 /* ZapScreenShieldConfiguration */;
 		};
 		370EA2D82DB7C698001466A3 /* Exceptions for "ZapScreen" folder in "ZapScreenDeviceActivityMonitor" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Models/ApplicationProfile.swift,
 				Models/DataBase.swift,
+				Models/ShieldManager.swift,
 			);
 			target = 370EA2C42DB7C333001466A3 /* ZapScreenDeviceActivityMonitor */;
+		};
+		371304BF2DB9253D008F1E71 /* Exceptions for "ZapScreenShieldConfiguration" folder in "ZapScreenShieldConfiguration" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 371304B02DB9253D008F1E71 /* ZapScreenShieldConfiguration */;
+		};
+		371304C12DB92A6D008F1E71 /* Exceptions for "ZapScreen" folder in "ZapScreenShieldConfiguration" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Models/ApplicationProfile.swift,
+				Models/DataBase.swift,
+				Models/ShieldManager.swift,
+			);
+			target = 371304B02DB9253D008F1E71 /* ZapScreenShieldConfiguration */;
 		};
 		37FFC5102DB88EAC00FCC13A /* Exceptions for "ZapScreen" folder in "ZapScreen" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -137,8 +178,8 @@
 			exceptions = (
 				37FFC5102DB88EAC00FCC13A /* Exceptions for "ZapScreen" folder in "ZapScreen" target */,
 				370EA2D62DB7C698001466A3 /* Exceptions for "ZapScreen" folder in "ZapScreenShieldAction" target */,
-				370EA2D72DB7C698001466A3 /* Exceptions for "ZapScreen" folder in "ZapScreenShieldConfiguration" target */,
 				370EA2D82DB7C698001466A3 /* Exceptions for "ZapScreen" folder in "ZapScreenDeviceActivityMonitor" target */,
+				371304C12DB92A6D008F1E71 /* Exceptions for "ZapScreen" folder in "ZapScreenShieldConfiguration" target */,
 			);
 			path = ZapScreen;
 			sourceTree = "<group>";
@@ -151,20 +192,20 @@
 			path = ZapScreenShieldAction;
 			sourceTree = "<group>";
 		};
-		370EA2B52DB7C319001466A3 /* ZapScreenShieldConfiguration */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				370EA2BD2DB7C319001466A3 /* Exceptions for "ZapScreenShieldConfiguration" folder in "ZapScreenShieldConfiguration" target */,
-			);
-			path = ZapScreenShieldConfiguration;
-			sourceTree = "<group>";
-		};
 		370EA2C72DB7C333001466A3 /* ZapScreenDeviceActivityMonitor */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				370EA2CF2DB7C333001466A3 /* Exceptions for "ZapScreenDeviceActivityMonitor" folder in "ZapScreenDeviceActivityMonitor" target */,
 			);
 			path = ZapScreenDeviceActivityMonitor;
+			sourceTree = "<group>";
+		};
+		371304B42DB9253D008F1E71 /* ZapScreenShieldConfiguration */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				371304BF2DB9253D008F1E71 /* Exceptions for "ZapScreenShieldConfiguration" folder in "ZapScreenShieldConfiguration" target */,
+			);
+			path = ZapScreenShieldConfiguration;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -181,16 +222,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				370EA2A12DB7C303001466A3 /* ManagedSettings.framework in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		370EA2AF2DB7C319001466A3 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				370EA2B32DB7C319001466A3 /* ManagedSettings.framework in Frameworks */,
-				370EA2B42DB7C319001466A3 /* ManagedSettingsUI.framework in Frameworks */,
+				371304A22DB8E709008F1E71 /* ManagedSettings.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -198,7 +230,16 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				370EA2C62DB7C333001466A3 /* DeviceActivity.framework in Frameworks */,
+				371304AA2DB8E712008F1E71 /* DeviceActivity.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		371304AE2DB9253D008F1E71 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3721C1602DB92FB600224280 /* ManagedSettings.framework in Frameworks */,
+				3721C1632DB92FB700224280 /* ManagedSettingsUI.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -210,8 +251,8 @@
 			children = (
 				370EA1A62DB1DB5D001466A3 /* ZapScreen */,
 				370EA2A22DB7C303001466A3 /* ZapScreenShieldAction */,
-				370EA2B52DB7C319001466A3 /* ZapScreenShieldConfiguration */,
 				370EA2C72DB7C333001466A3 /* ZapScreenDeviceActivityMonitor */,
+				371304B42DB9253D008F1E71 /* ZapScreenShieldConfiguration */,
 				370EA20D2DB25873001466A3 /* Frameworks */,
 				370EA1A52DB1DB5D001466A3 /* Products */,
 			);
@@ -222,8 +263,8 @@
 			children = (
 				370EA1A42DB1DB5D001466A3 /* ZapScreen.app */,
 				370EA2A02DB7C303001466A3 /* ZapScreenShieldAction.appex */,
-				370EA2B22DB7C319001466A3 /* ZapScreenShieldConfiguration.appex */,
 				370EA2C52DB7C333001466A3 /* ZapScreenDeviceActivityMonitor.appex */,
+				371304B12DB9253D008F1E71 /* ZapScreenShieldConfiguration.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -255,8 +296,8 @@
 			);
 			dependencies = (
 				370EA2A82DB7C303001466A3 /* PBXTargetDependency */,
-				370EA2BB2DB7C319001466A3 /* PBXTargetDependency */,
 				370EA2CD2DB7C333001466A3 /* PBXTargetDependency */,
+				371304BA2DB9253D008F1E71 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				370EA1A62DB1DB5D001466A3 /* ZapScreen */,
@@ -275,6 +316,7 @@
 				370EA29C2DB7C303001466A3 /* Sources */,
 				370EA29D2DB7C303001466A3 /* Frameworks */,
 				370EA29E2DB7C303001466A3 /* Resources */,
+				371304A42DB8E709008F1E71 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -290,28 +332,6 @@
 			productReference = 370EA2A02DB7C303001466A3 /* ZapScreenShieldAction.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
-		370EA2B12DB7C319001466A3 /* ZapScreenShieldConfiguration */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 370EA2BE2DB7C319001466A3 /* Build configuration list for PBXNativeTarget "ZapScreenShieldConfiguration" */;
-			buildPhases = (
-				370EA2AE2DB7C319001466A3 /* Sources */,
-				370EA2AF2DB7C319001466A3 /* Frameworks */,
-				370EA2B02DB7C319001466A3 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				370EA2B52DB7C319001466A3 /* ZapScreenShieldConfiguration */,
-			);
-			name = ZapScreenShieldConfiguration;
-			packageProductDependencies = (
-			);
-			productName = ZapScreenShieldConfiguration;
-			productReference = 370EA2B22DB7C319001466A3 /* ZapScreenShieldConfiguration.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
 		370EA2C42DB7C333001466A3 /* ZapScreenDeviceActivityMonitor */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 370EA2D02DB7C333001466A3 /* Build configuration list for PBXNativeTarget "ZapScreenDeviceActivityMonitor" */;
@@ -319,6 +339,7 @@
 				370EA2C12DB7C333001466A3 /* Sources */,
 				370EA2C22DB7C333001466A3 /* Frameworks */,
 				370EA2C32DB7C333001466A3 /* Resources */,
+				371304AC2DB8E712008F1E71 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -332,6 +353,29 @@
 			);
 			productName = ZapScreenDeviceActivityMonitor;
 			productReference = 370EA2C52DB7C333001466A3 /* ZapScreenDeviceActivityMonitor.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		371304B02DB9253D008F1E71 /* ZapScreenShieldConfiguration */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 371304BC2DB9253D008F1E71 /* Build configuration list for PBXNativeTarget "ZapScreenShieldConfiguration" */;
+			buildPhases = (
+				371304AD2DB9253D008F1E71 /* Sources */,
+				371304AE2DB9253D008F1E71 /* Frameworks */,
+				371304AF2DB9253D008F1E71 /* Resources */,
+				3721C1622DB92FB600224280 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				371304B42DB9253D008F1E71 /* ZapScreenShieldConfiguration */,
+			);
+			name = ZapScreenShieldConfiguration;
+			packageProductDependencies = (
+			);
+			productName = ZapScreenShieldConfiguration;
+			productReference = 371304B12DB9253D008F1E71 /* ZapScreenShieldConfiguration.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
@@ -350,10 +394,10 @@
 					370EA29F2DB7C303001466A3 = {
 						CreatedOnToolsVersion = 16.2;
 					};
-					370EA2B12DB7C319001466A3 = {
+					370EA2C42DB7C333001466A3 = {
 						CreatedOnToolsVersion = 16.2;
 					};
-					370EA2C42DB7C333001466A3 = {
+					371304B02DB9253D008F1E71 = {
 						CreatedOnToolsVersion = 16.2;
 					};
 				};
@@ -374,8 +418,8 @@
 			targets = (
 				370EA1A32DB1DB5D001466A3 /* ZapScreen */,
 				370EA29F2DB7C303001466A3 /* ZapScreenShieldAction */,
-				370EA2B12DB7C319001466A3 /* ZapScreenShieldConfiguration */,
 				370EA2C42DB7C333001466A3 /* ZapScreenDeviceActivityMonitor */,
+				371304B02DB9253D008F1E71 /* ZapScreenShieldConfiguration */,
 			);
 		};
 /* End PBXProject section */
@@ -395,14 +439,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		370EA2B02DB7C319001466A3 /* Resources */ = {
+		370EA2C32DB7C333001466A3 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		370EA2C32DB7C333001466A3 /* Resources */ = {
+		371304AF2DB9253D008F1E71 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -426,14 +470,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		370EA2AE2DB7C319001466A3 /* Sources */ = {
+		370EA2C12DB7C333001466A3 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		370EA2C12DB7C333001466A3 /* Sources */ = {
+		371304AD2DB9253D008F1E71 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -448,15 +492,15 @@
 			target = 370EA29F2DB7C303001466A3 /* ZapScreenShieldAction */;
 			targetProxy = 370EA2A72DB7C303001466A3 /* PBXContainerItemProxy */;
 		};
-		370EA2BB2DB7C319001466A3 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 370EA2B12DB7C319001466A3 /* ZapScreenShieldConfiguration */;
-			targetProxy = 370EA2BA2DB7C319001466A3 /* PBXContainerItemProxy */;
-		};
 		370EA2CD2DB7C333001466A3 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 370EA2C42DB7C333001466A3 /* ZapScreenDeviceActivityMonitor */;
 			targetProxy = 370EA2CC2DB7C333001466A3 /* PBXContainerItemProxy */;
+		};
+		371304BA2DB9253D008F1E71 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 371304B02DB9253D008F1E71 /* ZapScreenShieldConfiguration */;
+			targetProxy = 371304B92DB9253D008F1E71 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -513,7 +557,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -570,7 +614,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -598,7 +642,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -630,7 +674,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -655,6 +699,7 @@
 				INFOPLIST_FILE = ZapScreenShieldAction/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ZapScreenShieldAction;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -681,6 +726,7 @@
 				INFOPLIST_FILE = ZapScreenShieldAction/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ZapScreenShieldAction;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -688,58 +734,6 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ntt.ZapScreen.ZapScreenShieldAction;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
-		370EA2BF2DB7C319001466A3 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = ZapScreenShieldConfiguration/ZapScreenShieldConfiguration.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = HMN5RUX388;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = ZapScreenShieldConfiguration/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = ZapScreenShieldConfiguration;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.ntt.ZapScreen.ZapScreenShieldConfiguration;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		370EA2C02DB7C319001466A3 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = ZapScreenShieldConfiguration/ZapScreenShieldConfiguration.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = HMN5RUX388;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = ZapScreenShieldConfiguration/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = ZapScreenShieldConfiguration;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.ntt.ZapScreen.ZapScreenShieldConfiguration;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -759,6 +753,7 @@
 				INFOPLIST_FILE = ZapScreenDeviceActivityMonitor/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ZapScreenDeviceActivityMonitor;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -785,6 +780,7 @@
 				INFOPLIST_FILE = ZapScreenDeviceActivityMonitor/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ZapScreenDeviceActivityMonitor;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -792,6 +788,60 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.ntt.ZapScreen.ZapScreenDeviceActivityMonitor;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		371304BD2DB9253D008F1E71 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ZapScreenShieldConfiguration/ZapScreenShieldConfiguration.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = HMN5RUX388;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ZapScreenShieldConfiguration/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ZapScreenShieldConfiguration;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ntt.ZapScreen.ZapScreenShieldConfiguration;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		371304BE2DB9253D008F1E71 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ZapScreenShieldConfiguration/ZapScreenShieldConfiguration.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = HMN5RUX388;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ZapScreenShieldConfiguration/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = ZapScreenShieldConfiguration;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.ntt.ZapScreen.ZapScreenShieldConfiguration;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -830,20 +880,20 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		370EA2BE2DB7C319001466A3 /* Build configuration list for PBXNativeTarget "ZapScreenShieldConfiguration" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				370EA2BF2DB7C319001466A3 /* Debug */,
-				370EA2C02DB7C319001466A3 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		370EA2D02DB7C333001466A3 /* Build configuration list for PBXNativeTarget "ZapScreenDeviceActivityMonitor" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				370EA2D12DB7C333001466A3 /* Debug */,
 				370EA2D22DB7C333001466A3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		371304BC2DB9253D008F1E71 /* Build configuration list for PBXNativeTarget "ZapScreenShieldConfiguration" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				371304BD2DB9253D008F1E71 /* Debug */,
+				371304BE2DB9253D008F1E71 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

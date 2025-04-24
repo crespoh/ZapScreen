@@ -20,6 +20,7 @@ struct ZapScreenApp: App {
                 .task {
                     do {
                         try await center.requestAuthorization(for: .individual)
+                        print("✅ FamilyControls permission granted.")
                     } catch {
                         print("Failed to get authorization: \(error)")
                     }

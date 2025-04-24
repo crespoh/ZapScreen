@@ -23,7 +23,7 @@ class ShieldManager: ObservableObject {
         let categories = discouragedSelections.categoryTokens
         
         store.shield.applications = applications.isEmpty ? nil : applications
-        store.shield.applicationCategories = categories.isEmpty ? nil : ShieldSettings.ActivityCategoryPolicy.specific(categories)
+        store.shield.applicationCategories = categories.isEmpty ? nil : .specific(categories)
         store.shield.webDomainCategories = categories.isEmpty ? nil : .specific(categories)
 
     }

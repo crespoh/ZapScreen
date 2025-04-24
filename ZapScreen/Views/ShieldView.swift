@@ -22,6 +22,7 @@ struct ShieldView: View {
             }
             .buttonStyle(.borderedProminent)
             Button("Apply Shielding") {
+                print("Apply Shielding")
                 manager.shieldActivities()
             }
             .buttonStyle(.bordered)
