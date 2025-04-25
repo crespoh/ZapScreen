@@ -5,9 +5,18 @@ struct ContentView: View {
     @State private var showingModeSelection = false
     @State private var isLoading = true
     
-    var body: some View {        
-        ShieldView()
-
+    var body: some View {
+        TabView {
+            ShieldView()
+                .tabItem {
+                    Label("Shield", systemImage: "shield")
+                }
+            
+            DeviceListView()
+                .tabItem {
+                    Label("Devices", systemImage: "iphone")
+                }
+        }
     }
 }
 

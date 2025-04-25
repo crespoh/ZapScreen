@@ -10,6 +10,8 @@ import FamilyControls
 
 @main
 struct ZapScreenApp: App {
+    
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     let center = AuthorizationCenter.shared
     @StateObject private var appState = AppState()
     
@@ -24,6 +26,7 @@ struct ZapScreenApp: App {
                     } catch {
                         print("Failed to get authorization: \(error)")
                     }
+                    print(AuthorizationCenter.shared.authorizationStatus)
                 }
                 .onOpenURL { url in
                     if url.scheme == "zapscreen" {
