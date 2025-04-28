@@ -64,7 +64,7 @@ struct DeviceListResponse: Codable {
     struct Device: Codable, Identifiable {
         let deviceToken: String
         let deviceId: String
-        let deviceName: String
+        var deviceName: String
         var isParent: Bool
         let createdAt: String
         
@@ -82,7 +82,10 @@ struct DeviceListResponse: Codable {
 
 class ZapScreenManager {
     static let shared = ZapScreenManager()
-    private let baseURL = "http://192.168.50.201:3000"
+    private let baseURL = "https://zap-screen-server.onrender.com"
+//    private let baseURL = "http://192.168.50.201:3000"
+//    private let baseURL = "http://172.20.10.2:3000"
+
     
     func getAllDevices(completion: @escaping (Result<DeviceListResponse, Error>) -> Void) {
             let url = URL(string: "\(baseURL)/api/devices/list")!
@@ -140,6 +143,14 @@ class ZapScreenManager {
               
               if let httpResponse = response as? HTTPURLResponse {
                   print("Check status: \(httpResponse.statusCode)")
+                  
+                  guard (200...299).contains(httpResponse.statusCode) else {
+                          print("Server error: \(httpResponse.statusCode)")
+                          if let data = data, let html = String(data: data, encoding: .utf8) {
+                              print("Received HTML/Error response: \(html)")
+                          }
+                          return
+                      }
               }
               
               guard let data = data else {
@@ -315,6 +326,39 @@ class ZapScreenManager {
                     completion(.success(()))
                 } else {
                     completion(.failure(NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Failed to update device parent status"])))
+                }
+            }
+        }.resume()
+    }
+    
+    func updateDeviceName(deviceId: String, deviceName: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        let url = URL(string: "\(baseURL)/api/devices/\(deviceId)/name")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let payload: [String: Any] = [
+            "deviceName": deviceName
+        ]
+        
+        request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
+        
+        print("Updating device name for ID: \(deviceId)")
+        print("New device name: \(deviceName)")
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                print("Update failed: \(error)")
+                completion(.failure(error))
+                return
+            }
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("Update status: \(httpResponse.statusCode)")
+                if httpResponse.statusCode == 200 {
+                    completion(.success(()))
+                } else {
+                    completion(.failure(NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Failed to update device name"])))
                 }
             }
         }.resume()

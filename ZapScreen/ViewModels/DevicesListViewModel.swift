@@ -44,4 +44,24 @@ class DevicesListViewModel: ObservableObject {
             }
         }
     }
+    
+    func updateDeviceName(deviceId: String, deviceName: String) {
+        isLoading = true
+        ZapScreenManager.shared.updateDeviceName(deviceId: deviceId, deviceName: deviceName) { [weak self] result in
+            DispatchQueue.main.async {
+                self?.isLoading = false
+                switch result {
+                case .success:
+                    // Update local device state
+                    if let index = self?.devices.firstIndex(where: { $0.deviceId == deviceId }) {
+                        self?.devices[index].deviceName = deviceName
+                    }
+                    self?.error = nil
+                case .failure(let error):
+                    self?.error = error
+                    print("Error updating device name: \(error)")
+                }
+            }
+        }
+    }
 }

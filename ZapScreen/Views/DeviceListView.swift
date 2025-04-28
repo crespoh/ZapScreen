@@ -14,10 +14,7 @@ struct DeviceListView: View {
                     ForEach(viewModel.devices) { device in
                         DeviceRow(
                             device: device,
-                            isParent: Binding(
-                                get: { editedDevices[device.deviceId] ?? device.isParent },
-                                set: { editedDevices[device.deviceId] = $0 }
-                            )
+                            viewModel: viewModel
                         )
                     }
                 }
@@ -57,16 +54,40 @@ struct DeviceListView: View {
 
 struct DeviceRow: View {
     let device: DeviceListResponse.Device
-    @Binding var isParent: Bool
+    @ObservedObject var viewModel: DevicesListViewModel
+    @State private var isEditingName = false
+    @State private var editedName: String = ""
     
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text(device.deviceName)
-                    .font(.headline)
+                if isEditingName {
+                    TextField("Device Name", text: $editedName)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .onSubmit {
+                            if !editedName.isEmpty {
+                                viewModel.updateDeviceName(deviceId: device.deviceId, deviceName: editedName)
+                            }
+                            isEditingName = false
+                        }
+                } else {
+                    Text(device.deviceName)
+                        .font(.headline)
+                        .onTapGesture {
+                            editedName = device.deviceName
+                            isEditingName = true
+                        }
+                }
+                
                 Spacer()
-                Toggle("Parent Device", isOn: $isParent)
-                    .labelsHidden()
+                
+                Toggle("Parent", isOn: Binding(
+                    get: { device.isParent },
+                    set: { newValue in
+                        viewModel.updateDeviceParentStatus(deviceId: device.deviceId, isParent: newValue)
+                    }
+                ))
+                .labelsHidden()
             }
             
             Text(device.deviceId)
