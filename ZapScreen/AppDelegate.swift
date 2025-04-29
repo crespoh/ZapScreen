@@ -71,17 +71,34 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                               willPresent notification: UNNotification,
                               withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        // Handle the notification when app is in foreground
-        completionHandler([.list, .sound, .badge])
+        // Log the notification details
+        let content = notification.request.content
+        print("Received notification while in foreground:")
+        print("Title: \(content.title)")
+        print("Body: \(content.body)")
+        print("User Info: \(content.userInfo)")
+        
+        // Show the notification even when the app is in foreground
+        completionHandler([.banner, .sound, .badge])
     }
     
     // Handle notification taps
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                               didReceive response: UNNotificationResponse,
                               withCompletionHandler completionHandler: @escaping () -> Void) {
-        // Handle the notification tap
-        let userInfo = response.notification.request.content.userInfo
-        print("Notification tapped with userInfo: \(userInfo)")
+        // Log the notification tap details
+        let content = response.notification.request.content
+        print("Notification tapped:")
+        print("Title: \(content.title)")
+        print("Body: \(content.body)")
+        print("User Info: \(content.userInfo)")
+        
+        // Handle any custom actions based on the notification
+        if let bundleIdentifier = content.userInfo["bundleIdentifier"] as? String {
+            print("App unlocked: \(bundleIdentifier)")
+            // You can add additional handling here if needed
+        }
+        
         completionHandler()
     }
     

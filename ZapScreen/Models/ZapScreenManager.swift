@@ -302,6 +302,8 @@ class ZapScreenManager {
             "bundleIdentifier": bundleIdentifier
         ]
         
+        print("Trigger Unlock Event")
+        
         request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
         
         URLSession.shared.dataTask(with: request) { data, response, error in

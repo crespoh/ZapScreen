@@ -4,6 +4,7 @@ import SwiftUI
 struct DeviceListView: View {
     @StateObject private var viewModel = DevicesListViewModel()
     @State private var editedDevices: [String: (isParent: Bool, deviceName: String)] = [:] // Track edited states
+    @State private var updateErrors: [String: String] = [:]
     
     var body: some View {
         NavigationView {

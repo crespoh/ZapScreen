@@ -10,7 +10,7 @@ import FamilyControls
 
 struct ShieldView: View {
     
-    @StateObject private var manager = ShieldManager()
+    @StateObject private var shieldManager = ShieldManager.shared
     @State private var showActivityPicker = false
     
     var body: some View {
@@ -23,10 +23,10 @@ struct ShieldView: View {
             .buttonStyle(.borderedProminent)
             Button("Apply Shielding") {
                 print("Apply Shielding")
-                manager.shieldActivities()
+                shieldManager.shieldActivities()
             }
             .buttonStyle(.bordered)
         }
-        .familyActivityPicker(isPresented: $showActivityPicker, selection: $manager.discouragedSelections)
+        .familyActivityPicker(isPresented: $showActivityPicker, selection: $shieldManager.discouragedSelections)
     }
 }

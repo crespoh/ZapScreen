@@ -16,6 +16,11 @@ struct ContentView: View {
                 .tabItem {
                     Label("Devices", systemImage: "iphone")
                 }
+            
+            UserDefaultsView()
+                .tabItem {
+                    Label("Debug", systemImage: "ladybug")
+                }
         }
     }
 }
