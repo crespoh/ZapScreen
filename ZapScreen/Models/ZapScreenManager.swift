@@ -332,7 +332,7 @@ class ZapScreenManager {
     }
     
     func updateDeviceName(deviceId: String, deviceName: String, completion: @escaping (Result<Void, Error>) -> Void) {
-        let url = URL(string: "\(baseURL)/api/devices/\(deviceId)/name")!
+        let url = URL(string: "\(baseURL)/api/devices/\(deviceId)")!
         var request = URLRequest(url: url)
         request.httpMethod = "PUT"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
