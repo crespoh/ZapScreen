@@ -3,7 +3,7 @@ import SwiftUI
 // Example SwiftUI view to display the device list
 struct DeviceListView: View {
     @StateObject private var viewModel = DevicesListViewModel()
-    @State private var editedDevices: [String: Bool] = [:] // Track edited isParent states
+    @State private var editedDevices: [String: (isParent: Bool, deviceName: String)] = [:] // Track edited states
     
     var body: some View {
         NavigationView {
@@ -14,7 +14,8 @@ struct DeviceListView: View {
                     ForEach(viewModel.devices) { device in
                         DeviceRow(
                             device: device,
-                            viewModel: viewModel
+                            viewModel: viewModel,
+                            editedDevices: $editedDevices
                         )
                     }
                 }
@@ -45,16 +46,65 @@ struct DeviceListView: View {
     }
     
     private func saveChanges() {
-        for (deviceId, isParent) in editedDevices {
-            viewModel.updateDeviceParentStatus(deviceId: deviceId, isParent: isParent)
+        let dispatchGroup = DispatchGroup()
+        var updateErrors: [String] = []
+        
+        // First update all device changes
+        for (deviceId, changes) in editedDevices {
+            dispatchGroup.enter()
+            
+            // Update device name
+            viewModel.updateDeviceName(deviceId: deviceId, deviceName: changes.deviceName)
+            
+            // Update parent status
+            viewModel.updateDeviceParentStatus(deviceId: deviceId, isParent: changes.isParent)
+            
+            // Update local state
+            if let index = viewModel.devices.firstIndex(where: { $0.deviceId == deviceId }) {
+                viewModel.devices[index].deviceName = changes.deviceName
+                viewModel.devices[index].isParent = changes.isParent
+            }
+            
+            dispatchGroup.leave()
         }
-        editedDevices.removeAll()
+        
+        // Wait for all updates to complete
+        dispatchGroup.notify(queue: .main) { [weak viewModel] in
+            guard let viewModel = viewModel else { return }
+            
+            if !updateErrors.isEmpty {
+                // Show error alert if any updates failed
+                viewModel.error = NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: updateErrors.joined(separator: "\n")])
+                return
+            }
+            
+            // Get all parent and child devices from the updated local state
+            let parentDevices = viewModel.devices.filter { $0.isParent }
+            let childDevices = viewModel.devices.filter { !$0.isParent }
+            
+            print("Parent devices after update:", parentDevices)
+            print("Child devices after update:", childDevices)
+            
+            // Only proceed if we have at least one parent and one child
+            if !parentDevices.isEmpty && !childDevices.isEmpty {
+                print("Trigger Child Parent relationship")
+                // Create relationships between all parents and children
+                for parent in parentDevices {
+                    for child in childDevices {
+                        viewModel.updateDeviceRelationship(parentDeviceId: parent.deviceId, childDeviceId: child.deviceId)
+                    }
+                }
+            }
+            
+            editedDevices.removeAll()
+        }
     }
 }
 
 struct DeviceRow: View {
     let device: DeviceListResponse.Device
     @ObservedObject var viewModel: DevicesListViewModel
+    @Binding var editedDevices: [String: (isParent: Bool, deviceName: String)]
     @State private var isEditingName = false
     @State private var editedName: String = ""
     
@@ -66,15 +116,18 @@ struct DeviceRow: View {
                         .textFieldStyle(RoundedBorderTextFieldStyle())
                         .onSubmit {
                             if !editedName.isEmpty {
-                                viewModel.updateDeviceName(deviceId: device.deviceId, deviceName: editedName)
+                                // Update the edited devices dictionary instead of making an immediate API call
+                                var currentChanges = editedDevices[device.deviceId] ?? (isParent: device.isParent, deviceName: device.deviceName)
+                                currentChanges.deviceName = editedName
+                                editedDevices[device.deviceId] = currentChanges
                             }
                             isEditingName = false
                         }
                 } else {
-                    Text(device.deviceName)
+                    Text(editedDevices[device.deviceId]?.deviceName ?? device.deviceName)
                         .font(.headline)
                         .onTapGesture {
-                            editedName = device.deviceName
+                            editedName = editedDevices[device.deviceId]?.deviceName ?? device.deviceName
                             isEditingName = true
                         }
                 }
@@ -82,9 +135,12 @@ struct DeviceRow: View {
                 Spacer()
                 
                 Toggle("Parent", isOn: Binding(
-                    get: { device.isParent },
+                    get: { editedDevices[device.deviceId]?.isParent ?? device.isParent },
                     set: { newValue in
-                        viewModel.updateDeviceParentStatus(deviceId: device.deviceId, isParent: newValue)
+                        // Update the edited devices dictionary instead of making an immediate API call
+                        var currentChanges = editedDevices[device.deviceId] ?? (isParent: device.isParent, deviceName: device.deviceName)
+                        currentChanges.isParent = newValue
+                        editedDevices[device.deviceId] = currentChanges
                     }
                 ))
                 .labelsHidden()

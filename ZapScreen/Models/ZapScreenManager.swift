@@ -80,6 +80,24 @@ struct DeviceListResponse: Codable {
     }
 }
 
+struct DeviceRelationshipResponse: Codable {
+    let success: Bool
+    let message: String
+    let relationship: Relationship
+    
+    struct Relationship: Codable {
+        let parentDeviceId: String
+        let childDeviceId: String
+        let createdAt: String
+        
+        var createdAtDate: Date? {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            return formatter.date(from: createdAt)
+        }
+    }
+}
+
 class ZapScreenManager {
     static let shared = ZapScreenManager()
     private let baseURL = "https://zap-screen-server.onrender.com"
@@ -182,7 +200,7 @@ class ZapScreenManager {
               switch result {
               case .success(let response):
                   if response.isRegistered {
-                      print("Device already registered. Parent status: \(response.isParent)")
+                      print("Device already registered. Parent status: \(String(describing: response.isParent))")
                       if response.deviceToken != deviceToken {
                           // Update token if changed
                           self.registerDevice(
@@ -360,6 +378,55 @@ class ZapScreenManager {
                 } else {
                     completion(.failure(NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Failed to update device name"])))
                 }
+            }
+        }.resume()
+    }
+    
+    func updateDeviceRelationship(parentDeviceId: String, childDeviceId: String, completion: @escaping (Result<DeviceRelationshipResponse, Error>) -> Void) {
+        let url = URL(string: "\(baseURL)/api/relationships/link")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let payload: [String: Any] = [
+            "parentDeviceId": parentDeviceId,
+            "childDeviceId": childDeviceId
+        ]
+        
+        request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
+        
+        print("Creating relationship with URL: \(url)")
+        print("Payload: \(payload)")
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                print("Relationship creation failed: \(error)")
+                completion(.failure(error))
+                return
+            }
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("Relationship creation status: \(httpResponse.statusCode)")
+            }
+            
+            guard let data = data else {
+                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No data received"])))
+                return
+            }
+            
+            // Print raw response for debugging
+            if let rawResponse = String(data: data, encoding: .utf8) {
+                print("Raw response: \(rawResponse)")
+            }
+            
+            do {
+                let decoder = JSONDecoder()
+                let response = try decoder.decode(DeviceRelationshipResponse.self, from: data)
+                print("Successfully created relationship")
+                completion(.success(response))
+            } catch {
+                print("Decoding failed: \(error)")
+                completion(.failure(error))
             }
         }.resume()
     }

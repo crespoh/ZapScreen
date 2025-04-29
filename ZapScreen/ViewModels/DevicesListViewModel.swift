@@ -64,4 +64,21 @@ class DevicesListViewModel: ObservableObject {
             }
         }
     }
+    
+    func updateDeviceRelationship(parentDeviceId: String, childDeviceId: String) {
+        isLoading = true
+        ZapScreenManager.shared.updateDeviceRelationship(parentDeviceId: parentDeviceId, childDeviceId: childDeviceId) { [weak self] result in
+            DispatchQueue.main.async {
+                self?.isLoading = false
+                switch result {
+                case .success(let response):
+                    print("Successfully created relationship: \(response.message)")
+                    self?.error = nil
+                case .failure(let error):
+                    self?.error = error
+                    print("Error creating relationship: \(error)")
+                }
+            }
+        }
+    }
 }
