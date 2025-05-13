@@ -16,5 +16,7 @@
 	<array>
 		<string>group.com.ntt.ZapScreen.data</string>
 	</array>
+	<key>com.apple.security.system-extension</key>
+	<true/>
 </dict>
 </plist>
