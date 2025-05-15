@@ -11,8 +11,11 @@ import SwiftUI
 enum UserRole: String, CaseIterable, Identifiable {
     case parent = "Parent"
     case child = "Child"
-    case myself = "Myself"
     var id: String { rawValue }
+
+    static var selectionCases: [UserRole] {
+        return [.parent, .child]
+    }
 }
 
 struct SelectionView: View {
@@ -22,7 +25,7 @@ struct SelectionView: View {
             Text("Who is using this device?")
                 .font(.title)
                 .padding(.top, 60)
-            ForEach(UserRole.allCases) { role in
+            ForEach(UserRole.selectionCases) { role in
                 Button(action: {
                     onSelect(role)
                 }) {
