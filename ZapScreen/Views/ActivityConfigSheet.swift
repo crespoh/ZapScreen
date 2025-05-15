@@ -8,6 +8,6 @@ struct ActivityConfigSheet: View {
 //            .background(Color(.systemBackground))
 //            .cornerRadius(20)
 //            .shadow(radius: 10)
-        ShieldCustomView()
+        ShieldCustomView(onDismiss: { isPresented = false })
     }
 } 

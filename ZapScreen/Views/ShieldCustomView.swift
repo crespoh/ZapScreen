@@ -11,21 +11,30 @@ struct ShieldCustomView: View {
     @State var selection = FamilyActivitySelection()
     @StateObject private var shieldManager = ShieldManager.shared
     @State private var errorMessage: String? = nil
-
+    var onDismiss: (() -> Void)? = nil
 
     var body: some View {
         VStack {
-            Image(systemName: "eye")
-                .font(.system(size: 76.0))
-                .padding()
-
+            HStack {
+                Button("Cancel") {
+                    onDismiss?()
+                }
+                Spacer()
+                Button("Save") {
+                    // Add save logic here if needed
+                    shieldManager.discouragedSelections.applicationTokens = selection.applicationTokens
+                    shieldManager.discouragedSelections.categoryTokens = selection.categoryTokens
+                    shieldManager.discouragedSelections.webDomainTokens = selection.webDomainTokens
+                    shieldManager.shieldActivities()
+                    onDismiss?()
+                }
+            }
+            .padding()
 
             FamilyActivityPicker(selection: $selection)
-
-//            Image(systemName: "hourglass")
-//                .font(.system(size: 76.0))
-//                .padding()
+            
             Text(errorMessage ?? "")
+            Spacer()
         }
         .onChange(of: selection) { newSelection in
             let apps = newSelection.applicationTokens
@@ -38,10 +47,7 @@ struct ShieldCustomView: View {
                 errorMessage = "Please select at least one app, category, or website."
             } else {
                 errorMessage = nil
-//                shieldManager.discouragedSelections.applicationTokens = newSelection.applicationTokens
-//                shieldManager.discouragedSelections.categoryTokens = newSelection.categoryTokens
-//                shieldManager.discouragedSelections.webDomainTokens = newSelection.webDomainTokens
-//                shieldManager.shieldActivities()
+
             }
         }
     }
