@@ -23,16 +23,35 @@ class ShieldActionExtension: ShieldActionDelegate {
         case .primaryButtonPressed:
             logger.info("Primary button pressed for application")
             
-            // Get the saved app name and token from UserDefaults
-            let defaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
-            let savedAppName = defaults?.string(forKey: "lastBlockedAppName")
-            let savedAppToken = defaults?.string(forKey: "lastBlockedAppToken")
-            
-            // Create application profile with saved name if token matches
-            createApplicationProfile(for: application, withName: savedAppName)
-            
-            // Send unlock event to server
-            ZapScreenManager.shared.sendUnlockEvent(bundleIdentifier: savedAppName ?? "")
+            struct AppTokenName: Codable {
+                let tokenData: Data
+                let name: String
+            }
+            let tokenNameListKey = "AppTokenNameList"
+            let userDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
+            let tokenKey: String
+            if let data = try? NSKeyedArchiver.archivedData(withRootObject: application, requiringSecureCoding: true) {
+                tokenKey = data.base64EncodedString()
+                logger.info("[ZapScreen] Used archivedData for tokenKey")
+            } else {
+                tokenKey = String(describing: application)
+                logger.info("[ZapScreen] Used String(describing:) for tokenKey: \(tokenKey)")
+            }
+            var appName: String? = nil
+            if let mapping = userDefaults?.dictionary(forKey: tokenNameListKey) as? [String: String] {
+                appName = mapping[tokenKey]
+                if let appName = appName {
+                    logger.info("[ZapScreen] Successfully extracted app name '\(appName)' for tokenKey \(tokenKey) from UserDefaults")
+                } else {
+                    logger.info("[ZapScreen] No app name found in UserDefaults for tokenKey \(tokenKey)")
+                }
+            } else {
+                logger.error("[ZapScreen] No mapping dictionary found in UserDefaults for key \(tokenNameListKey)")
+            }
+            // Create application profile with saved name if available
+            createApplicationProfile(for: application, withName: appName)
+            // Send unlock event to server using the mapped app name
+            ZapScreenManager.shared.sendUnlockEvent(bundleIdentifier: appName ?? "")
             
             startMonitoring()
             unlockApp()
