@@ -31,13 +31,6 @@ class ShieldManager: ObservableObject {
         store.shield.webDomainCategories = categories.isEmpty ? nil : .specific(categories)
     }
     
-    func saveLastBlockedApp(name: String, token: ApplicationToken) {
-        print("Saved App name is " + name)
-        let defaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
-        defaults?.set(name, forKey: "lastBlockedAppName")
-        defaults?.set(String(describing: token), forKey: "lastBlockedAppToken")
-    }
-    
     func unlockApplication(_ profile: ApplicationProfile) {
         store.shield.applications?.remove(profile.applicationToken)
     }

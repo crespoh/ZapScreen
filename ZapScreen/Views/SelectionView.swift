@@ -30,7 +30,7 @@ struct SelectionView: View {
                     let isParent = (role == .parent)
                     print("Role selected: \(role.rawValue), isParent: \(isParent)")
                     let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
-                    if let deviceId = groupDefaults?.string(forKey: "DeviceId") {
+                    if let deviceId = groupDefaults?.string(forKey: "ZapDeviceId") {
                         print("Calling updateDeviceParentStatus with deviceId: \(deviceId), isParent: \(isParent)")
                         ZapScreenManager.shared.updateDeviceParentStatus(deviceId: deviceId, isParent: isParent) { result in
                             switch result {

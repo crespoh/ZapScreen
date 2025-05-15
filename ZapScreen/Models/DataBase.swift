@@ -9,7 +9,7 @@ import Foundation
 
 struct DataBase {
     private let defaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
-    private let applicationProfileKey = "ApplicationProfile"
+    private let applicationProfileKey = "ZapApplicationProfile"
     
     func getApplicationProfiles() -> [UUID: ApplicationProfile] {
         guard let data = defaults?.data(forKey: applicationProfileKey) else { return [:] }

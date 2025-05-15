@@ -267,7 +267,7 @@ class ZapScreenManager {
           checkDeviceRegistration(deviceId: deviceId) { result in
               switch result {
               case .success(let response):
-                groupDefaults?.set(deviceId, forKey: "DeviceId")
+                groupDefaults?.set(deviceId, forKey: "ZapDeviceId")
                 if response.isRegistered {
                     print("Device already registered. Parent status: \(String(describing: response.isParent))")
                     if response.deviceToken != deviceToken {
@@ -291,7 +291,7 @@ class ZapScreenManager {
                     ) { result in
                         switch result {
                         case .success:
-                            groupDefaults?.set(deviceId, forKey: "DeviceId")
+                            groupDefaults?.set(deviceId, forKey: "ZapDeviceId")
                             completion(true)  // or false for child devices
                         case .failure:
                             completion(false)

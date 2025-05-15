@@ -21,7 +21,7 @@ struct ShieldCustomView: View {
         let name: String
     }
 
-    private let tokenNameListKey = "AppTokenNameList"
+    private let tokenNameListKey = "ZapAppTokenNameList"
 
     // Helper to get the selected app token as a unique base64 string (if any)
     private func tokenKey(_ token: (NSSecureCoding & NSObjectProtocol)?) -> String? {

@@ -27,7 +27,7 @@ class ShieldActionExtension: ShieldActionDelegate {
                 let tokenData: Data
                 let name: String
             }
-            let tokenNameListKey = "AppTokenNameList"
+            let tokenNameListKey = "ZapAppTokenNameList"
             let userDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
             let tokenKey: String
             if let data = try? NSKeyedArchiver.archivedData(withRootObject: application, requiringSecureCoding: true) {

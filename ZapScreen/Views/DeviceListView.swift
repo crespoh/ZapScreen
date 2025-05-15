@@ -8,7 +8,7 @@ struct DeviceListView: View {
     
     private var deviceIdFromGroupDefaults: String? {
         let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
-        return groupDefaults?.string(forKey: "DeviceId")
+        return groupDefaults?.string(forKey: "ZapDeviceId")
     }
     
     var body: some View {
