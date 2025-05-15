@@ -41,7 +41,7 @@ struct ZapScreenApp: App {
                         handleRoleSelection(role)
                     }
                 } else if appState.isAuthorized {
-                    ContentView()
+                    RootView()
                         .environmentObject(appState)
                 } else {
                     VStack {
