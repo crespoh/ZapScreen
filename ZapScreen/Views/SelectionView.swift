@@ -27,6 +27,25 @@ struct SelectionView: View {
                 .padding(.top, 60)
             ForEach(UserRole.selectionCases) { role in
                 Button(action: {
+                    let isParent = (role == .parent)
+                    print("Role selected: \(role.rawValue), isParent: \(isParent)")
+                    let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
+                    if let deviceId = groupDefaults?.string(forKey: "DeviceId") {
+                        print("Calling updateDeviceParentStatus with deviceId: \(deviceId), isParent: \(isParent)")
+                        ZapScreenManager.shared.updateDeviceParentStatus(deviceId: deviceId, isParent: isParent) { result in
+                            switch result {
+                            case .success:
+                                print("Device parent status updated for role: \(role)")
+                                ZapScreenManager.shared.checkDeviceRelationship { relationships in
+                                    print("Relationship check complete. Relationships added: ", relationships)
+                                }
+                            case .failure(let error):
+                                print("Failed to update device parent status: \(error)")
+                            }
+                        }
+                    } else {
+                        print("DeviceId not found in UserDefaults")
+                    }
                     onSelect(role)
                 }) {
                     ZStack {

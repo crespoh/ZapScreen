@@ -30,7 +30,7 @@ struct ContentView: View {
                     Label("Devices", systemImage: "iphone")
                 }
             
-            UserDefaultsView()
+            GroupUserDefaultsView()
                 .tabItem {
                     Label("Debug", systemImage: "ladybug")
                 }

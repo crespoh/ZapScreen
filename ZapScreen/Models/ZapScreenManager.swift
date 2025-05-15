@@ -99,11 +99,78 @@ struct DeviceRelationshipResponse: Codable {
 }
 
 class ZapScreenManager {
+
     static let shared = ZapScreenManager()
     private let baseURL = "https://zap-screen-server.onrender.com"
 //    private let baseURL = "http://192.168.50.201:3000"
 //    private let baseURL = "http://172.20.10.2:3000"
+    /// Checks and sets up device relationships between all parents and children.
+    /// For every parent-child pair, triggers updateDeviceRelationship if not already paired.
+    /// Calls completion when all updates are triggered.
+    /// Fetches all existing parent-child relationships from the server.
+    private func fetchAllDeviceRelationships(completion: @escaping (Set<String>) -> Void) {
+        let url = URL(string: "\(baseURL)/api/relationships/list")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            var existingPairs = Set<String>()
+            defer { completion(existingPairs) }
+            guard let data = data, error == nil else { return }
+            struct RelationshipListResponse: Codable {
+                let success: Bool
+                let relationships: [DeviceRelationshipResponse.Relationship]
+            }
+            do {
+                let decoded = try JSONDecoder().decode(RelationshipListResponse.self, from: data)
+                for rel in decoded.relationships {
+                    let key = rel.parentDeviceId + ":" + rel.childDeviceId
+                    existingPairs.insert(key)
+                }
+            } catch {
+                print("Failed to decode relationships list: \(error)")
+            }
+        }.resume()
+    }
 
+    func checkDeviceRelationship(completion: (([(parent: String, child: String)]) -> Void)? = nil) {
+        getAllDevices { result in
+            switch result {
+            case .success(let response):
+                let parents = response.devices.filter { $0.isParent }
+                let children = response.devices.filter { !$0.isParent }
+                guard !parents.isEmpty, !children.isEmpty else {
+                    print("No parent or child devices found. Skipping relationship setup.")
+                    completion?([])
+                    return
+                }
+                self.fetchAllDeviceRelationships { existingPairs in
+                    var triggeredPairs: Set<String> = existingPairs
+                    var relationships: [(parent: String, child: String)] = []
+                    let group = DispatchGroup()
+                    for parent in parents {
+                        for child in children {
+                            let pairKey = parent.deviceId + ":" + child.deviceId
+                            if !triggeredPairs.contains(pairKey) {
+                                triggeredPairs.insert(pairKey)
+                                relationships.append((parent: parent.deviceId, child: child.deviceId))
+                                group.enter()
+                                self.updateDeviceRelationship(parentDeviceId: parent.deviceId, childDeviceId: child.deviceId) { _ in
+                                    group.leave()
+                                }
+                            }
+                        }
+                    }
+                    group.notify(queue: .main) {
+                        print("All parent-child relationships updated (new only).")
+                        completion?(relationships)
+                    }
+                }
+            case .failure(let error):
+                print("Failed to fetch devices for relationship check: \(error)")
+                completion?([])
+            }
+        }
+    }
     
     func getAllDevices(completion: @escaping (Result<DeviceListResponse, Error>) -> Void) {
             let url = URL(string: "\(baseURL)/api/devices/list")!
@@ -194,40 +261,43 @@ class ZapScreenManager {
       }
       
       func handleDeviceRegistration(deviceToken: String, completion: @escaping (Bool) -> Void) {
+        let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
           let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
           
           checkDeviceRegistration(deviceId: deviceId) { result in
               switch result {
               case .success(let response):
-                  if response.isRegistered {
-                      print("Device already registered. Parent status: \(String(describing: response.isParent))")
-                      if response.deviceToken != deviceToken {
-                          // Update token if changed
-                          self.registerDevice(
-                              deviceToken: deviceToken,
-                              deviceId: deviceId,
-                              isParent: response.isParent ?? true
-                          ) { _ in
-                              completion(response.isParent ?? true)
-                          }
-                      } else {
-                          completion(response.isParent ?? true)
-                      }
-                  } else {
-                      // Register as new device
-                      self.registerDevice(
-                          deviceToken: deviceToken,
-                          deviceId: deviceId,
-                          isParent: true  // or false for child devices
-                      ) { result in
-                          switch result {
-                          case .success:
-                              completion(true)  // or false for child devices
-                          case .failure:
-                              completion(false)
-                          }
-                      }
-                  }
+                groupDefaults?.set(deviceId, forKey: "DeviceId")
+                if response.isRegistered {
+                    print("Device already registered. Parent status: \(String(describing: response.isParent))")
+                    if response.deviceToken != deviceToken {
+                        // Update token if changed
+                        self.registerDevice(
+                            deviceToken: deviceToken,
+                            deviceId: deviceId,
+                            isParent: response.isParent ?? true
+                        ) { _ in
+                            completion(response.isParent ?? true)
+                        }
+                    } else {
+                        completion(response.isParent ?? true)
+                    }
+                } else {
+                    // Register as new device
+                    self.registerDevice(
+                        deviceToken: deviceToken,
+                        deviceId: deviceId,
+                        isParent: true  // or false for child devices
+                    ) { result in
+                        switch result {
+                        case .success:
+                            groupDefaults?.set(deviceId, forKey: "DeviceId")
+                            completion(true)  // or false for child devices
+                        case .failure:
+                            completion(false)
+                        }
+                    }
+                }
                   
               case .failure:
                   completion(false)

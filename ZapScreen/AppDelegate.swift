@@ -55,10 +55,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         print("Device Token: \(token)")
         
         // First check if device is already registered
-        ZapScreenManager.shared.handleDeviceRegistration(deviceToken: token) { isParent in
-            print("Device is parent: \(isParent)")
-            // Store the parent status if needed
-            UserDefaults.standard.set(isParent, forKey: "IsParentDevice")
+        ZapScreenManager.shared.handleDeviceRegistration(deviceToken: token) { _ in
+            print("Device registration handled.")
+            // No longer updating or storing isParent status here
         }
     }
     

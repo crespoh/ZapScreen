@@ -4,7 +4,12 @@ import SwiftUI
 struct DeviceListView: View {
     @StateObject private var viewModel = DevicesListViewModel()
     @State private var editedDevices: [String: (isParent: Bool, deviceName: String)] = [:] // Track edited states
-    @State private var updateErrors: [String: String] = [:]
+    @AppStorage("selectedRole") private var selectedRole: String?
+    
+    private var deviceIdFromGroupDefaults: String? {
+        let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
+        return groupDefaults?.string(forKey: "DeviceId")
+    }
     
     var body: some View {
         NavigationView {
@@ -16,7 +21,8 @@ struct DeviceListView: View {
                         DeviceRow(
                             device: device,
                             viewModel: viewModel,
-                            editedDevices: $editedDevices
+                            editedDevices: $editedDevices,
+                            selectedRole: selectedRole
                         )
                     }
                 }
@@ -48,7 +54,7 @@ struct DeviceListView: View {
     
     private func saveChanges() {
         let dispatchGroup = DispatchGroup()
-        var updateErrors: [String] = []
+        let updateErrors: [String] = []
         
         // First update all device changes
         for (deviceId, changes) in editedDevices {
@@ -106,6 +112,7 @@ struct DeviceRow: View {
     let device: DeviceListResponse.Device
     @ObservedObject var viewModel: DevicesListViewModel
     @Binding var editedDevices: [String: (isParent: Bool, deviceName: String)]
+    let selectedRole: String?
     @State private var isEditingName = false
     @State private var editedName: String = ""
     
@@ -138,13 +145,13 @@ struct DeviceRow: View {
                 Toggle("Parent", isOn: Binding(
                     get: { editedDevices[device.deviceId]?.isParent ?? device.isParent },
                     set: { newValue in
-                        // Update the edited devices dictionary instead of making an immediate API call
                         var currentChanges = editedDevices[device.deviceId] ?? (isParent: device.isParent, deviceName: device.deviceName)
                         currentChanges.isParent = newValue
                         editedDevices[device.deviceId] = currentChanges
                     }
                 ))
                 .labelsHidden()
+                .disabled(selectedRole == UserRole.child.rawValue)
             }
             
             Text(device.deviceId)
