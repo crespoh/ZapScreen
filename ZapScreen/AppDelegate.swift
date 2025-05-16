@@ -12,8 +12,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         
         // Request notification authorization
-        requestNotificationAuthorization()
-        requestLocalNetworkPermission()
+
         
 //        print(AuthorizationCenter.shared.authorizationStatus)
         // Set notification center delegate
@@ -24,30 +23,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         
         return true
     }
-    
-    private func requestLocalNetworkPermission() {
-               let monitor = NWPathMonitor()
-               monitor.pathUpdateHandler = { path in
-                   if path.status == .satisfied {
-                       print("Local network access granted")
-                   } else {
-                       print("Local network access denied")
-                   }
-               }
-               let queue = DispatchQueue(label: "LocalNetworkPermission")
-               monitor.start(queue: queue)
-   }
-    
-    private func requestNotificationAuthorization() {
-            let center = UNUserNotificationCenter.current()
-            center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-                if let error = error {
-                    print("Error requesting notification authorization: \(error)")
-                }
-                print("Notification authorization granted: \(granted)")
-            }
-    }
-    
+        
     // Handle successful registration
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         let tokenParts = deviceToken.map { data in String(format: "%02.2hhx", data) }

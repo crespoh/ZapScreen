@@ -1,6 +1,13 @@
 import SwiftUI
+import Foundation
+import UserNotifications
+import Network
 
 struct LoginView: View {
+    @State private var showPermissionAlert = false
+    @State private var permissionMessage = ""
+    @State private var notificationGranted: Bool? = nil
+    @State private var localNetworkGranted: Bool? = nil
     @AppStorage("isLoggedIn") private var isLoggedIn = false
     @State private var username: String = ""
     @State private var password: String = ""
@@ -34,6 +41,9 @@ struct LoginView: View {
             .padding(.horizontal)
         }
         .padding()
+        .alert(isPresented: $showPermissionAlert) {
+            Alert(title: Text("Permission Results"), message: Text(permissionMessage), dismissButton: .default(Text("OK")))
+        }
     }
 
     func handleLogin() {
@@ -41,8 +51,27 @@ struct LoginView: View {
         if username == "admin" && password == "password" {
             isLoggedIn = true
             errorMessage = nil
+            PermissionManager.requestNotificationAuthorization { granted in
+                notificationGranted = granted
+                updatePermissionAlert()
+            }
+            PermissionManager.requestLocalNetworkPermission { granted in
+                localNetworkGranted = granted
+                updatePermissionAlert()
+            }
         } else {
             errorMessage = "Invalid username or password."
+        }
+    }
+
+    private func updatePermissionAlert() {
+        // Only show alert if both permissions have been checked (not nil)
+        if let notif = notificationGranted, let local = localNetworkGranted {
+            var message = ""
+            message += notif ? "Notifications: Granted\n" : "Notifications: Denied\n"
+            message += local ? "Local Network: Granted" : "Local Network: Denied"
+            permissionMessage = message
+            showPermissionAlert = true
         }
     }
 }

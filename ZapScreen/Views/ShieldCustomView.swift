@@ -34,9 +34,6 @@ struct ShieldCustomView: View {
             return nil
         }
     }
-    private var selectedAppTokenKey: String? {
-        tokenKey(selection.applicationTokens.first as? (NSSecureCoding & NSObjectProtocol))
-    }
 
     var body: some View {
         let saveDisabled = selection.applicationTokens.count != 1 || selection.categoryTokens.count > 0 || selection.webDomainTokens.count > 0 || errorMessage != nil
@@ -96,7 +93,6 @@ struct ShieldCustomView: View {
                     }
                     Spacer()
                     Button("Save") {
-                        let userDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") ?? .standard
                         if let token = selection.applicationTokens.first, !enteredAppName.isEmpty {
                             let userDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") ?? .standard
                             let tokenKey: String

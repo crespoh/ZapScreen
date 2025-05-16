@@ -12,7 +12,6 @@ import FamilyControls
 struct ZapScreenApp: App {
     
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    let center = AuthorizationCenter.shared
     
     var body: some Scene {
         WindowGroup {
