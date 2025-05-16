@@ -26,10 +26,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         let token = tokenParts.joined()
         print("Device Token: \(token)")
         
-        // First check if device is already registered
-        ZapScreenManager.shared.handleDeviceRegistration(deviceToken: token) { _ in
-            print("Device registration handled.")
-            // No longer updating or storing isParent status here
+        // Store deviceToken in group UserDefaults for later use after login
+        if let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") {
+            groupDefaults.set(token, forKey: "DeviceToken")
+            print("[AppDelegate] Device token saved to group UserDefaults: \(token)")
+        } else {
+            print("[AppDelegate] Failed to save device token to group UserDefaults.")
         }
     }
     

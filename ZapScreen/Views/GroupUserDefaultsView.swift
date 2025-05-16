@@ -5,7 +5,7 @@ struct GroupUserDefaultsView: View {
     let userDefaults: [String: Any]
 
     init() {
-        self.userDefaults = UserDefaultsManager.shared.allGroupUserDefaults().filter { $0.key.hasPrefix("Zap") }
+        self.userDefaults = UserDefaultsManager.shared.allGroupUserDefaults().filter { $0.key.hasPrefix("Zap") || $0.key.hasPrefix("zap") }
     }
 
     var body: some View {

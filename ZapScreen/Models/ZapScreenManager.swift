@@ -99,6 +99,42 @@ struct DeviceRelationshipResponse: Codable {
 }
 
 class ZapScreenManager {
+    // Helper to fetch userId from group UserDefaults
+    private let groupUserDefaultsId = "group.com.ntt.ZapScreen.data"
+    private func fetchUserIdentifier() -> String? {
+        guard let userDefaults = UserDefaults(suiteName: groupUserDefaultsId) else {
+            print("[ZapScreenManager] Failed to access group UserDefaults for identifier extraction.")
+            return nil
+        }
+        let userId = userDefaults.string(forKey: "zap_userId")
+        print("[ZapScreenManager] fetchUserIdentifier -> userId: \(userId ?? "<nil>")")
+        return userId
+    }
+
+    /// Injects userId as HTTP header into a URLRequest
+    private func injectUserHeaders(into request: inout URLRequest) {
+        if let userId = fetchUserIdentifier() {
+            request.setValue(userId, forHTTPHeaderField: "user-account-id")
+        }
+    }
+
+    /// Saves the user ID to group UserDefaults upon login.
+    /// - Parameter userId: The user ID to save.
+    func saveUserLoginInfo(userId: String) {
+        guard let userDefaults = UserDefaults(suiteName: groupUserDefaultsId) else {
+            print("Failed to access group UserDefaults with identifier: \(groupUserDefaultsId)")
+            return
+        }
+        // Check if userId already exists
+        if let existingUserId = userDefaults.string(forKey: "zap_userId") {
+            print("userId \(existingUserId) already exists in group UserDefaults. Not overwriting.")
+            return
+        }
+        userDefaults.set(userId, forKey: "zap_userId")
+        userDefaults.synchronize() // Optional, ensures immediate write
+        print("Saved userId \(userId) to group UserDefaults")
+    }
+
 
     static let shared = ZapScreenManager()
     private let baseURL = "https://zap-screen-server.onrender.com"
@@ -111,7 +147,9 @@ class ZapScreenManager {
     private func fetchAllDeviceRelationships(completion: @escaping (Set<String>) -> Void) {
         let url = URL(string: "\(baseURL)/api/relationships/list")!
         var request = URLRequest(url: url)
+        injectUserHeaders(into: &request)
         request.httpMethod = "GET"
+
         URLSession.shared.dataTask(with: request) { data, response, error in
             var existingPairs = Set<String>()
             defer { completion(existingPairs) }
@@ -175,11 +213,12 @@ class ZapScreenManager {
     func getAllDevices(completion: @escaping (Result<DeviceListResponse, Error>) -> Void) {
             let url = URL(string: "\(baseURL)/api/devices/list")!
             var request = URLRequest(url: url)
+        injectUserHeaders(into: &request)
             request.httpMethod = "GET"
             
             print("Fetching all devices from: \(url)")
-            
-            URLSession.shared.dataTask(with: request) { data, response, error in
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
                 if let error = error {
                     print("Fetch failed: \(error)")
                     completion(.failure(error))
@@ -210,16 +249,17 @@ class ZapScreenManager {
                     completion(.failure(error))
                 }
             }.resume()
-        }
+    }
     
     func checkDeviceRegistration(deviceId: String, completion: @escaping (Result<DeviceCheckResponse, Error>) -> Void) {
           let url = URL(string: "\(baseURL)/api/devices/check/\(deviceId)")!
           var request = URLRequest(url: url)
+        injectUserHeaders(into: &request)
           request.httpMethod = "GET"
           
           print("Checking device registration for ID: \(deviceId)")
-          
-          URLSession.shared.dataTask(with: request) { data, response, error in
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
               if let error = error {
                   print("Check failed: \(error)")
                   completion(.failure(error))
@@ -261,7 +301,7 @@ class ZapScreenManager {
       }
       
       func handleDeviceRegistration(deviceToken: String, completion: @escaping (Bool) -> Void) {
-        let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
+        let groupDefaults = UserDefaults(suiteName: groupUserDefaultsId)
           let deviceId = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
           
           checkDeviceRegistration(deviceId: deviceId) { result in
@@ -310,6 +350,7 @@ class ZapScreenManager {
         let deviceName = UIDevice.current.name
         let url = URL(string: "\(baseURL)/api/devices/register")!
         var request = URLRequest(url: url)
+        injectUserHeaders(into: &request)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
@@ -325,7 +366,34 @@ class ZapScreenManager {
         print("Registering device with URL: \(url)")
         print("Payload: \(payload)")
         
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        // --- BEGIN VERBOSE LOGGING ---
+print("[ZapScreenManager] Sending request:")
+print("URL: \(request.url?.absoluteString ?? "<nil>")")
+print("Method: \(request.httpMethod ?? "<nil>")")
+print("Headers: \(request.allHTTPHeaderFields ?? [:])")
+if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
+    print("Body: \(bodyString)")
+} else {
+    print("Body: <none>")
+}
+// --- END VERBOSE LOGGING ---
+
+URLSession.shared.dataTask(with: request) { data, response, error in
+    // --- BEGIN VERBOSE RESPONSE LOGGING ---
+    if let httpResponse = response as? HTTPURLResponse {
+        print("[ZapScreenManager] Received response:")
+        print("Status code: \(httpResponse.statusCode)")
+        print("Headers: \(httpResponse.allHeaderFields)")
+    }
+    if let data = data, let responseBody = String(data: data, encoding: .utf8) {
+        print("Body: \(responseBody)")
+    } else {
+        print("Body: <none>")
+    }
+    if let error = error {
+        print("[ZapScreenManager] Error: \(error)")
+    }
+    // --- END VERBOSE RESPONSE LOGGING ---
             if let error = error {
                 print("Registration failed: \(error)")
                 completion(.failure(error))
@@ -364,6 +432,7 @@ class ZapScreenManager {
         
         let url = URL(string: "\(baseURL)/api/notifications/unlock-event")!
         var request = URLRequest(url: url)
+        injectUserHeaders(into: &request)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
@@ -376,7 +445,34 @@ class ZapScreenManager {
         
         request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
         
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        // --- BEGIN VERBOSE LOGGING ---
+print("[ZapScreenManager] Sending request:")
+print("URL: \(request.url?.absoluteString ?? "<nil>")")
+print("Method: \(request.httpMethod ?? "<nil>")")
+print("Headers: \(request.allHTTPHeaderFields ?? [:])")
+if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
+    print("Body: \(bodyString)")
+} else {
+    print("Body: <none>")
+}
+// --- END VERBOSE LOGGING ---
+
+URLSession.shared.dataTask(with: request) { data, response, error in
+    // --- BEGIN VERBOSE RESPONSE LOGGING ---
+    if let httpResponse = response as? HTTPURLResponse {
+        print("[ZapScreenManager] Received response:")
+        print("Status code: \(httpResponse.statusCode)")
+        print("Headers: \(httpResponse.allHeaderFields)")
+    }
+    if let data = data, let responseBody = String(data: data, encoding: .utf8) {
+        print("Body: \(responseBody)")
+    } else {
+        print("Body: <none>")
+    }
+    if let error = error {
+        print("[ZapScreenManager] Error: \(error)")
+    }
+    // --- END VERBOSE RESPONSE LOGGING ---
             if let error = error {
                 print("Unlock event failed: \(error)")
                 return
@@ -391,6 +487,7 @@ class ZapScreenManager {
     func updateDeviceParentStatus(deviceId: String, isParent: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
         let url = URL(string: "\(baseURL)/api/devices/\(deviceId)/parent-status")!
         var request = URLRequest(url: url)
+        injectUserHeaders(into: &request)
         request.httpMethod = "PUT"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
@@ -403,7 +500,34 @@ class ZapScreenManager {
         print("Updating device parent status for ID: \(deviceId)")
         print("New parent status: \(isParent)")
         
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        // --- BEGIN VERBOSE LOGGING ---
+print("[ZapScreenManager] Sending request:")
+print("URL: \(request.url?.absoluteString ?? "<nil>")")
+print("Method: \(request.httpMethod ?? "<nil>")")
+print("Headers: \(request.allHTTPHeaderFields ?? [:])")
+if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
+    print("Body: \(bodyString)")
+} else {
+    print("Body: <none>")
+}
+// --- END VERBOSE LOGGING ---
+
+URLSession.shared.dataTask(with: request) { data, response, error in
+    // --- BEGIN VERBOSE RESPONSE LOGGING ---
+    if let httpResponse = response as? HTTPURLResponse {
+        print("[ZapScreenManager] Received response:")
+        print("Status code: \(httpResponse.statusCode)")
+        print("Headers: \(httpResponse.allHeaderFields)")
+    }
+    if let data = data, let responseBody = String(data: data, encoding: .utf8) {
+        print("Body: \(responseBody)")
+    } else {
+        print("Body: <none>")
+    }
+    if let error = error {
+        print("[ZapScreenManager] Error: \(error)")
+    }
+    // --- END VERBOSE RESPONSE LOGGING ---
             if let error = error {
                 print("Update failed: \(error)")
                 completion(.failure(error))
@@ -424,6 +548,7 @@ class ZapScreenManager {
     func updateDeviceName(deviceId: String, deviceName: String, completion: @escaping (Result<Void, Error>) -> Void) {
         let url = URL(string: "\(baseURL)/api/devices/\(deviceId)")!
         var request = URLRequest(url: url)
+        injectUserHeaders(into: &request)
         request.httpMethod = "PUT"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
@@ -436,7 +561,34 @@ class ZapScreenManager {
         print("Updating device name for ID: \(deviceId)")
         print("New device name: \(deviceName)")
         
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        // --- BEGIN VERBOSE LOGGING ---
+print("[ZapScreenManager] Sending request:")
+print("URL: \(request.url?.absoluteString ?? "<nil>")")
+print("Method: \(request.httpMethod ?? "<nil>")")
+print("Headers: \(request.allHTTPHeaderFields ?? [:])")
+if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
+    print("Body: \(bodyString)")
+} else {
+    print("Body: <none>")
+}
+// --- END VERBOSE LOGGING ---
+
+URLSession.shared.dataTask(with: request) { data, response, error in
+    // --- BEGIN VERBOSE RESPONSE LOGGING ---
+    if let httpResponse = response as? HTTPURLResponse {
+        print("[ZapScreenManager] Received response:")
+        print("Status code: \(httpResponse.statusCode)")
+        print("Headers: \(httpResponse.allHeaderFields)")
+    }
+    if let data = data, let responseBody = String(data: data, encoding: .utf8) {
+        print("Body: \(responseBody)")
+    } else {
+        print("Body: <none>")
+    }
+    if let error = error {
+        print("[ZapScreenManager] Error: \(error)")
+    }
+    // --- END VERBOSE RESPONSE LOGGING ---
             if let error = error {
                 print("Update failed: \(error)")
                 completion(.failure(error))
@@ -457,6 +609,7 @@ class ZapScreenManager {
     func updateDeviceRelationship(parentDeviceId: String, childDeviceId: String, completion: @escaping (Result<DeviceRelationshipResponse, Error>) -> Void) {
         let url = URL(string: "\(baseURL)/api/relationships/link")!
         var request = URLRequest(url: url)
+        injectUserHeaders(into: &request)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
@@ -470,7 +623,34 @@ class ZapScreenManager {
         print("Creating relationship with URL: \(url)")
         print("Payload: \(payload)")
         
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        // --- BEGIN VERBOSE LOGGING ---
+print("[ZapScreenManager] Sending request:")
+print("URL: \(request.url?.absoluteString ?? "<nil>")")
+print("Method: \(request.httpMethod ?? "<nil>")")
+print("Headers: \(request.allHTTPHeaderFields ?? [:])")
+if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
+    print("Body: \(bodyString)")
+} else {
+    print("Body: <none>")
+}
+// --- END VERBOSE LOGGING ---
+
+URLSession.shared.dataTask(with: request) { data, response, error in
+    // --- BEGIN VERBOSE RESPONSE LOGGING ---
+    if let httpResponse = response as? HTTPURLResponse {
+        print("[ZapScreenManager] Received response:")
+        print("Status code: \(httpResponse.statusCode)")
+        print("Headers: \(httpResponse.allHeaderFields)")
+    }
+    if let data = data, let responseBody = String(data: data, encoding: .utf8) {
+        print("Body: \(responseBody)")
+    } else {
+        print("Body: <none>")
+    }
+    if let error = error {
+        print("[ZapScreenManager] Error: \(error)")
+    }
+    // --- END VERBOSE RESPONSE LOGGING ---
             if let error = error {
                 print("Relationship creation failed: \(error)")
                 completion(.failure(error))

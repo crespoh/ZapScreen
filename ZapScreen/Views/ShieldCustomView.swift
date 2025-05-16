@@ -9,12 +9,12 @@ import FamilyControls
 import DeviceActivity
 
 struct ShieldCustomView: View {
+    @Environment(\.dismiss) private var dismiss
     @State var selection = FamilyActivitySelection()
     @StateObject private var shieldManager = ShieldManager.shared
     @State private var errorMessage: String? = nil
     @State private var showNamePrompt = false
     @State private var enteredAppName: String = ""
-    var onDismiss: (() -> Void)? = nil
 
     struct AppTokenName: Codable {
         let tokenData: Data
@@ -40,7 +40,7 @@ struct ShieldCustomView: View {
         VStack {
             HStack {
                 Button("Cancel") {
-                    onDismiss?()
+                    dismiss()
                 }
                 Spacer()
                 Button("Save") {
@@ -56,6 +56,7 @@ struct ShieldCustomView: View {
             Text(errorMessage ?? "")
             Spacer()
         }
+        .navigationBarBackButtonHidden(true)
         .onChange(of: selection) { newSelection in
             let apps = newSelection.applicationTokens
             let cats = newSelection.categoryTokens
@@ -125,7 +126,7 @@ struct ShieldCustomView: View {
                         shieldManager.discouragedSelections.categoryTokens = selection.categoryTokens
                         shieldManager.discouragedSelections.webDomainTokens = selection.webDomainTokens
                         shieldManager.shieldActivities()
-                        onDismiss?()
+                        dismiss()
                     }
                     .disabled(enteredAppName.isEmpty)
                 }

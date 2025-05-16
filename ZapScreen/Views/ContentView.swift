@@ -10,16 +10,18 @@ struct ContentView: View {
     @AppStorage("isAuthorized") private var isAuthorized = false
     
     var body: some View {
-        NavigationView {
+        NavigationStack {
             TabView {
             VStack {
-                Button("Configure activities") {
-                    isConfigSheetPresented = true
+                NavigationLink(destination: ShieldCustomView()) {
+                    Text("Configure Activities")
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
                 }
                 .padding()
-                .sheet(isPresented: $isConfigSheetPresented) {
-                    ActivityConfigSheet(isPresented: $isConfigSheetPresented)
-                }
             }
             .tabItem {
                 Label("Shield", systemImage: "shield")
