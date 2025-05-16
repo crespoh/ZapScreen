@@ -43,7 +43,8 @@ struct DeviceListView: View {
                 viewModel.fetchDevices()
             }
             .toolbar {
-                if !editedDevices.isEmpty {
+                // Hide save changes button for child devices
+                if !editedDevices.isEmpty && selectedRole != UserRole.child.rawValue {
                     Button("Save Changes") {
                         saveChanges()
                     }
@@ -119,39 +120,49 @@ struct DeviceRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                if isEditingName {
-                    TextField("Device Name", text: $editedName)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .onSubmit {
-                            if !editedName.isEmpty {
-                                // Update the edited devices dictionary instead of making an immediate API call
-                                var currentChanges = editedDevices[device.deviceId] ?? (isParent: device.isParent, deviceName: device.deviceName)
-                                currentChanges.deviceName = editedName
-                                editedDevices[device.deviceId] = currentChanges
-                            }
-                            isEditingName = false
-                        }
-                } else {
-                    Text(editedDevices[device.deviceId]?.deviceName ?? device.deviceName)
+                if selectedRole == UserRole.child.rawValue {
+                    // View-only: show name as text
+                    Text(device.deviceName)
                         .font(.headline)
-                        .onTapGesture {
-                            editedName = editedDevices[device.deviceId]?.deviceName ?? device.deviceName
-                            isEditingName = true
-                        }
-                }
-                
-                Spacer()
-                
-                Toggle("Parent", isOn: Binding(
-                    get: { editedDevices[device.deviceId]?.isParent ?? device.isParent },
-                    set: { newValue in
-                        var currentChanges = editedDevices[device.deviceId] ?? (isParent: device.isParent, deviceName: device.deviceName)
-                        currentChanges.isParent = newValue
-                        editedDevices[device.deviceId] = currentChanges
+                } else {
+                    if isEditingName {
+                        TextField("Device Name", text: $editedName)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .onSubmit {
+                                if !editedName.isEmpty {
+                                    // Update the edited devices dictionary instead of making an immediate API call
+                                    var currentChanges = editedDevices[device.deviceId] ?? (isParent: device.isParent, deviceName: device.deviceName)
+                                    currentChanges.deviceName = editedName
+                                    editedDevices[device.deviceId] = currentChanges
+                                }
+                                isEditingName = false
+                            }
+                    } else {
+                        Text(editedDevices[device.deviceId]?.deviceName ?? device.deviceName)
+                            .font(.headline)
+                            .onTapGesture {
+                                editedName = editedDevices[device.deviceId]?.deviceName ?? device.deviceName
+                                isEditingName = true
+                            }
                     }
-                ))
-                .labelsHidden()
-                .disabled(selectedRole == UserRole.child.rawValue)
+                }
+                Spacer()
+                if selectedRole != UserRole.child.rawValue {
+                    Toggle("Parent", isOn: Binding(
+                        get: { editedDevices[device.deviceId]?.isParent ?? device.isParent },
+                        set: { newValue in
+                            var currentChanges = editedDevices[device.deviceId] ?? (isParent: device.isParent, deviceName: device.deviceName)
+                            currentChanges.isParent = newValue
+                            editedDevices[device.deviceId] = currentChanges
+                        }
+                    ))
+                    .labelsHidden()
+                } else {
+                    // For child, just show parent/child status as text
+                    Text(device.isParent ? "Parent" : "Child")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                }
             }
             
             Text(device.deviceId)
