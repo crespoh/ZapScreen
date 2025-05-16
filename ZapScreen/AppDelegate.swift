@@ -4,10 +4,14 @@ import ManagedSettings
 import DeviceActivity
 import UserNotifications
 import Network
+import SwiftData
+
 
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     let center = AuthorizationCenter.shared
     let store = ManagedSettingsStore()
+
+    var applicationProfile: ApplicationProfile!
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         
@@ -61,21 +65,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                               withCompletionHandler completionHandler: @escaping () -> Void) {
         // Bridge to SwiftUI for navigation
         let content = response.notification.request.content
-        if let action = content.userInfo["action"] as? String, action == "childUnlocked" {
-            // Set AppStorage flag to trigger navigation in group UserDefaults
-            if let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") {
-                groupDefaults.set(true, forKey: "zapShowRemoteLock")
-                groupDefaults.synchronize()
-            }
-            // Save bundleIdentifier and childDeviceId to parent's group UserDefaults with keys starting with Zap
-            if let bundleIdentifier = content.userInfo["bundleIdentifier"] as? String,
-               let childDeviceId = content.userInfo["childDeviceId"] as? String {
-                if let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") {
-                    groupDefaults.set(childDeviceId, forKey: "ZapChildDeviceId")
-                    groupDefaults.set(bundleIdentifier, forKey: "ZapLastUnlockedBundleIdentifier")
-                    groupDefaults.synchronize()
-                    print("[AppDelegate] Saved ZapChildDeviceId: \(childDeviceId), ZapLastUnlockedBundleIdentifier: \(bundleIdentifier) to group UserDefaults")
-                }
+        if let action = content.userInfo["action"] as? String {
+            switch action {
+            case "childUnlock":
+                handleChildUnlockedNotification(content: content)
+            case "unlock":
+                handleUnLockNotification(content: content)
+            default:
+                break
             }
         }
         // Log the notification tap details
@@ -83,15 +80,115 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         print("Title: \(content.title)")
         print("Body: \(content.body)")
         print("User Info: \(content.userInfo)")
-        
         // Handle any custom actions based on the notification
         if let bundleIdentifier = content.userInfo["bundleIdentifier"] as? String {
             print("App unlocked: \(bundleIdentifier)")
-            // You can add additional handling here if needed
         }
-        
         completionHandler()
     }
+
+    private func handleChildUnlockedNotification(content: UNNotificationContent) {
+        // Set AppStorage flag to trigger navigation in group UserDefaults
+        if let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") {
+            groupDefaults.set(true, forKey: "zapShowRemoteLock")
+            groupDefaults.synchronize()
+        }
+        // Save bundleIdentifier and childDeviceId to parent's group UserDefaults with keys starting with Zap
+        if let bundleIdentifier = content.userInfo["bundleIdentifier"] as? String,
+           let childDeviceId = content.userInfo["childDeviceId"] as? String {
+            if let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") {
+                groupDefaults.set(childDeviceId, forKey: "ZapChildDeviceId")
+                groupDefaults.set(bundleIdentifier, forKey: "ZapLastUnlockedBundleIdentifier")
+                groupDefaults.synchronize()
+                print("[AppDelegate] Saved ZapChildDeviceId: \(childDeviceId), ZapLastUnlockedBundleIdentifier: \(bundleIdentifier) to group UserDefaults")
+            }
+        }
+    }
+
+    private func handleUnLockNotification(content: UNNotificationContent) {
+        print("[AppDelegate] Received unlock action notification")
+        guard let bundleIdentifier = content.userInfo["bundleIdentifier"] as? String else {
+            print("[AppDelegate] No bundleIdentifier found in unlock notification")
+            return
+        }
+        print("[AppDelegate] Locking app with bundleIdentifier: \(bundleIdentifier)")
+        let shieldManager = ShieldManager.shared
+        shieldManager.unlockApplication(bundleIdentifier)
+        guard let minutes = content.userInfo["minutes"] as? Int else {
+            print("[AppDelegate] No minutes found in unlock notification")
+            return
+        }
+        let db = DataBase()
+        let profiles = db.getApplicationProfiles()
+        for profile in profiles {
+            if profile.value.applicationName == bundleIdentifier {
+                let applicationToken = profile.value.applicationToken
+                createApplicationProfile(for: applicationToken, withName: bundleIdentifier)
+                startMonitoring(minutes: minutes)
+            }
+        }
+        
+        
+        // Retrieve ZapAppTokenNameList from group UserDefaults
+//        if let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data"),
+//           let mapping = groupDefaults.dictionary(forKey: "ZapAppTokenNameList") as? [String: ApplicationToken] {
+//            // Find the tokenKey for this bundleIdentifier
+//            if let tokenKey = mapping.first(where: { $0.key == bundleIdentifier })?.value {
+//                print("[AppDelegate] Found tokenKey for bundleIdentifier \(bundleIdentifier): \(tokenKey)")
+//                // Use the tokenKey directly as the application token
+//                let shieldManager = ShieldManager.shared
+//                shieldManager.discouragedSelections.applicationTokens = [tokenKey]
+//                shieldManager.shieldActivities()
+//                print("[AppDelegate] Shielded app for bundleIdentifier \(bundleIdentifier) using tokenKey directly")
+//            } else {
+//                print("[AppDelegate] No tokenKey found for bundleIdentifier \(bundleIdentifier) in ZapAppTokenNameList")
+//            }
+//        } else {
+//            print("[AppDelegate] No ZapAppTokenNameList found in group UserDefaults")
+//        }
+    }
+    
+    func createApplicationProfile(for application: ApplicationToken, withName name: String? = nil) {
+
+        self.applicationProfile = ApplicationProfile(
+            applicationToken: application,
+            applicationName: name ?? "App \(application.hashValue)" // Use provided name or generate one
+        )
+        let dataBase = DataBase()
+        dataBase.addApplicationProfile(self.applicationProfile)
+
+    }
+    
+    func startMonitoring(minutes: Int) {
+        print("Starting device activity monitoring for \(minutes)")
+        let unlockTime = minutes
+        let event: [DeviceActivityEvent.Name: DeviceActivityEvent] = [
+            (DeviceActivityEvent.Name(self.applicationProfile.id.uuidString) as DeviceActivityEvent.Name): DeviceActivityEvent(
+                applications: Set<ApplicationToken>([self.applicationProfile.applicationToken]),
+                threshold: DateComponents(minute: unlockTime)
+            )
+        ]
+        
+        let intervalEnd = Calendar.current.dateComponents(
+            [.hour, .minute, .second],
+            from: Calendar.current.date(byAdding: .minute, value: unlockTime, to: Date.now) ?? Date.now
+        )
+        let schedule = DeviceActivitySchedule(
+            intervalStart: DateComponents(hour: 0, minute: 0),
+            intervalEnd: intervalEnd,
+            repeats: false
+        )
+         
+        let center = DeviceActivityCenter()
+        do {
+            try center.startMonitoring(DeviceActivityName(self.applicationProfile.id.uuidString), during: schedule, events: event)
+            print("Successfully started monitoring")
+        } catch {
+            print("Error monitoring schedule: \(error.localizedDescription)")
+            print("Error monitoring schedule: \(error)")
+        }
+    }
+    
     
     // MARK: UISceneSession Lifecycle
     func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession, options: UIScene.ConnectionOptions) -> UISceneConfiguration {

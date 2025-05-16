@@ -5,10 +5,13 @@
 //  Created by tongteknai on 13/5/25.
 //
 import SwiftUI
+import SwiftData
 import FamilyControls
 import DeviceActivity
+import ManagedSettings
 
 struct ShieldCustomView: View {
+    @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) private var dismiss
     @State var selection = FamilyActivitySelection()
     @StateObject private var shieldManager = ShieldManager.shared
@@ -16,10 +19,10 @@ struct ShieldCustomView: View {
     @State private var showNamePrompt = false
     @State private var enteredAppName: String = ""
 
-    struct AppTokenName: Codable {
-        let tokenData: Data
-        let name: String
-    }
+//    struct AppTokenName: Codable {
+//        let tokenData: Data
+//        let name: String
+//    }
 
     private let tokenNameListKey = "ZapAppTokenNameList"
 
@@ -94,31 +97,35 @@ struct ShieldCustomView: View {
                     }
                     Spacer()
                     Button("Save") {
-                        if let token = selection.applicationTokens.first, !enteredAppName.isEmpty {
-                            let userDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") ?? .standard
-                            let tokenKey: String
-                            if let data = try? NSKeyedArchiver.archivedData(withRootObject: token, requiringSecureCoding: true) {
-                                tokenKey = data.base64EncodedString()
-                                print("[ZapScreen] Used archivedData for tokenKey")
-                            } else {
-                                tokenKey = String(describing: token)
-                                print("[ZapScreen] Used String(describing:) for tokenKey: \(tokenKey)")
-                            }
-                            var mapping = userDefaults.dictionary(forKey: tokenNameListKey) as? [String: String] ?? [:]
-                            mapping[tokenKey] = enteredAppName
-                            userDefaults.set(mapping, forKey: tokenNameListKey)
-                            let successMsg = "[ZapScreen] Saved app name '\(enteredAppName)' for tokenKey \(tokenKey)"
-                            print(successMsg)
-                            errorMessage = nil
-                        } else if selection.applicationTokens.first == nil {
-                            let errMsg = "No application token selected; cannot save app name."
-                            print("[ZapScreen] \(errMsg)")
-                            errorMessage = errMsg
-                        } else {
-                            let errMsg = "App name is empty; cannot save."
-                            print("[ZapScreen] \(errMsg)")
-                            errorMessage = errMsg
-                        }
+                        
+                        let token = selection.applicationTokens.first
+//                        let appTokenName = AppTokenName(name: enteredAppName, token: token!)
+//                        modelContext.insert(appTokenName)
+                        
+                        let applicationProfile = ApplicationProfile(applicationToken: token!, applicationName: enteredAppName)
+                        let dataBase = DataBase()
+                        dataBase.addApplicationProfile(applicationProfile)
+                        
+//                        if let token = selection.applicationTokens.first, !enteredAppName.isEmpty {
+//                            let userDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") ?? .standard
+//                            let tokenKey: ApplicationToken
+//                            tokenKey = token
+//                            var mapping = userDefaults.dictionary(forKey: tokenNameListKey) as? [String: ApplicationToken] ?? [:]
+//                            mapping[enteredAppName] = tokenKey
+//                            userDefaults.set(mapping, forKey: tokenNameListKey)
+//                            let successMsg = "[ZapScreen] Saved app name '\(enteredAppName)' for tokenKey \(tokenKey)"
+//                            print(successMsg)
+//                            errorMessage = nil
+//                        } else if selection.applicationTokens.first == nil {
+//                            let errMsg = "No application token selected; cannot save app name."
+//                            print("[ZapScreen] \(errMsg)")
+//                            errorMessage = errMsg
+//                        } else {
+//                            let errMsg = "App name is empty; cannot save."
+//                            print("[ZapScreen] \(errMsg)")
+//                            errorMessage = errMsg
+//                        }
+                        print("[ShieldCustomView] Save App Token Successfully")
                         showNamePrompt = false
                         enteredAppName = ""
                         // Now do the original save logic

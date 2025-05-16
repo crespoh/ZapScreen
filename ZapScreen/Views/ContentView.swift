@@ -13,31 +13,31 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             TabView {
-            VStack {
-                NavigationLink(destination: ShieldCustomView()) {
-                    Text("Configure Activities")
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
-                }
-                .padding()
+                VStack {
+                    NavigationLink(destination: ShieldCustomView()) {
+                        Text("Configure Activities")
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
+                    }
+                    .padding()
+                    }
+                    .tabItem {
+                        Label("Shield", systemImage: "shield")
+                    }
+                
+                DeviceListView()
+                    .tabItem {
+                        Label("Devices", systemImage: "iphone")
+                    }
+                
+                GroupUserDefaultsView()
+                    .tabItem {
+                        Label("Debug", systemImage: "ladybug")
+                    }
             }
-            .tabItem {
-                Label("Shield", systemImage: "shield")
-            }
-            
-            DeviceListView()
-                .tabItem {
-                    Label("Devices", systemImage: "iphone")
-                }
-            
-            GroupUserDefaultsView()
-                .tabItem {
-                    Label("Debug", systemImage: "ladybug")
-                }
-        }
             .navigationTitle("ZapScreen")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -59,7 +59,7 @@ struct ContentView: View {
                     zapShowRemoteLock = false
                 }
             )) {
-                RemoteLockView()
+                RemoteUnLockView()
             }
         }
     }

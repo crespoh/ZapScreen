@@ -522,21 +522,23 @@ URLSession.shared.dataTask(with: request) { data, response, error in
     }
 
     // MARK: - Send Lock Command
-    func sendLockCommand(to childDeviceId: String, bundleIdentifier: String, completion: @escaping (Result<Void, Error>) -> Void) {
-        let url = URL(string: "\(baseURL)/api/notifications/devices/\(childDeviceId)/lock")!
+    func sendUnLockCommand(to childDeviceId: String, bundleIdentifier: String, time minutes: Int,completion: @escaping (Result<Void, Error>) -> Void) {
+        let url = URL(string: "\(baseURL)/api/notifications/devices/\(childDeviceId)/unlock")!
         var request = URLRequest(url: url)
         injectUserHeaders(into: &request)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         let payload: [String: Any] = [
-            "bundleIdentifier": bundleIdentifier
+            "bundleIdentifier": bundleIdentifier,
+            "minutes" : minutes
         ]
 
         request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
 
         print("Sending lock command to device ID: \(childDeviceId)")
         print("Bundle Identifier: \(bundleIdentifier)")
+        print("Time \(minutes)")
 
         // --- BEGIN VERBOSE LOGGING ---
         print("[ZapScreenManager] Sending request:")
@@ -567,17 +569,17 @@ URLSession.shared.dataTask(with: request) { data, response, error in
     }
     // --- END VERBOSE RESPONSE LOGGING ---
             if let error = error {
-                print("Lock command failed: \(error)")
+                print("UnLock command failed: \(error)")
                 completion(.failure(error))
                 return
             }
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("Lock command status: \(httpResponse.statusCode)")
+                print("UnLock command status: \(httpResponse.statusCode)")
                 if httpResponse.statusCode == 200 {
                     completion(.success(()))
                 } else {
-                    completion(.failure(NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Failed to send lock command"])))
+                    completion(.failure(NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Failed to send Unlock command"])))
                 }
             }
         }.resume()

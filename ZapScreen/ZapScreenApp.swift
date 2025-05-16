@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import SwiftData
 import FamilyControls
 
 @main
@@ -17,5 +18,7 @@ struct ZapScreenApp: App {
         WindowGroup {
             RootView()
         }
+        .modelContainer(for: AppTokenName.self)
     }
+        
 }

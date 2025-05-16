@@ -133,6 +133,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Models/ApplicationProfile.swift,
+				Models/AppTokenName.swift,
 				Models/DataBase.swift,
 				Models/ShieldManager.swift,
 				Models/ZapScreenManager.swift,
@@ -143,6 +144,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Models/ApplicationProfile.swift,
+				Models/AppTokenName.swift,
 				Models/DataBase.swift,
 				Models/ShieldManager.swift,
 				Models/ZapScreenManager.swift,
@@ -160,6 +162,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Models/ApplicationProfile.swift,
+				Models/AppTokenName.swift,
 				Models/DataBase.swift,
 				Models/ShieldManager.swift,
 				Models/ZapScreenManager.swift,

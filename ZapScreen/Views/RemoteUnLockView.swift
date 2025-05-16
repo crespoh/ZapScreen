@@ -1,22 +1,22 @@
 import SwiftUI
 
-struct RemoteLockView: View {
+struct RemoteUnLockView: View {
     @State private var isSending = false
     @State private var sendResult: String?
     @AppStorage("selectedRole") private var selectedRole: String?
     
     var body: some View {
         VStack(spacing: 24) {
-            Text("Remote Lock Control")
+            Text("Remote UnLock Control")
                 .font(.largeTitle)
                 .padding(.top)
-            Text("Send a lock command to your child's device. This will lock the app your child has unlocked.")
+            Text("Send a unlock command to your child's device. This will unlock the app your child requested.")
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
-            Button(action: sendLockCommand) {
+            Button(action: sendUnLockCommand) {
                 HStack {
                     if isSending { ProgressView() }
-                    Text("Lock Child's App")
+                    Text("UnLock Child's App for 2 mins")
                 }
             }
             .disabled(isSending)
@@ -30,7 +30,7 @@ struct RemoteLockView: View {
         .padding()
     }
     
-    private func sendLockCommand() {
+    private func sendUnLockCommand() {
         isSending = true
         sendResult = nil
         // Fetch child device ID and bundleIdentifier as needed
@@ -41,13 +41,13 @@ struct RemoteLockView: View {
             isSending = false
             return
         }
-        ZapScreenManager.shared.sendLockCommand(to: childDeviceId, bundleIdentifier: bundleIdentifier) { result in
+        ZapScreenManager.shared.sendUnLockCommand(to: childDeviceId, bundleIdentifier: bundleIdentifier, time: 2) { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    sendResult = "Lock command sent successfully."
+                    sendResult = "UnLock command sent successfully."
                 case .failure(let error):
-                    sendResult = "Failed to send lock command: \(error.localizedDescription)"
+                    sendResult = "Failed to send Unlock command: \(error.localizedDescription)"
                 }
                 isSending = false
             }
@@ -56,5 +56,5 @@ struct RemoteLockView: View {
 }
 
 #Preview {
-    RemoteLockView()
+    RemoteUnLockView()
 }
