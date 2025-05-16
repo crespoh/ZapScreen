@@ -11,10 +11,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         
-        // Request notification authorization
-
-        
-//        print(AuthorizationCenter.shared.authorizationStatus)
         // Set notification center delegate
         UNUserNotificationCenter.current().delegate = self
         
