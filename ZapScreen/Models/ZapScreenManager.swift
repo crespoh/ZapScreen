@@ -500,19 +500,57 @@ URLSession.shared.dataTask(with: request) { data, response, error in
         print("Updating device parent status for ID: \(deviceId)")
         print("New parent status: \(isParent)")
         
-        // --- BEGIN VERBOSE LOGGING ---
-print("[ZapScreenManager] Sending request:")
-print("URL: \(request.url?.absoluteString ?? "<nil>")")
-print("Method: \(request.httpMethod ?? "<nil>")")
-print("Headers: \(request.allHTTPHeaderFields ?? [:])")
-if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
-    print("Body: \(bodyString)")
-} else {
-    print("Body: <none>")
-}
-// --- END VERBOSE LOGGING ---
+
 
 URLSession.shared.dataTask(with: request) { data, response, error in
+
+            if let error = error {
+                print("Update failed: \(error)")
+                completion(.failure(error))
+                return
+            }
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                print("Update status: \(httpResponse.statusCode)")
+                if httpResponse.statusCode == 200 {
+                    completion(.success(()))
+                } else {
+                    completion(.failure(NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Failed to update device parent status"])))
+                }
+            }
+        }.resume()
+    }
+
+    // MARK: - Send Lock Command
+    func sendLockCommand(to childDeviceId: String, bundleIdentifier: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        let url = URL(string: "\(baseURL)/api/notifications/devices/\(childDeviceId)/lock")!
+        var request = URLRequest(url: url)
+        injectUserHeaders(into: &request)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let payload: [String: Any] = [
+            "bundleIdentifier": bundleIdentifier
+        ]
+
+        request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
+
+        print("Sending lock command to device ID: \(childDeviceId)")
+        print("Bundle Identifier: \(bundleIdentifier)")
+
+        // --- BEGIN VERBOSE LOGGING ---
+        print("[ZapScreenManager] Sending request:")
+        print("URL: \(request.url?.absoluteString ?? "<nil>")")
+        print("Method: \(request.httpMethod ?? "<nil>")")
+        print("Headers: \(request.allHTTPHeaderFields ?? [:])")
+        if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
+            print("Body: \(bodyString)")
+        } else {
+            print("Body: <none>")
+        }
+        // --- END VERBOSE LOGGING ---
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
     // --- BEGIN VERBOSE RESPONSE LOGGING ---
     if let httpResponse = response as? HTTPURLResponse {
         print("[ZapScreenManager] Received response:")
@@ -529,17 +567,17 @@ URLSession.shared.dataTask(with: request) { data, response, error in
     }
     // --- END VERBOSE RESPONSE LOGGING ---
             if let error = error {
-                print("Update failed: \(error)")
+                print("Lock command failed: \(error)")
                 completion(.failure(error))
                 return
             }
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("Update status: \(httpResponse.statusCode)")
+                print("Lock command status: \(httpResponse.statusCode)")
                 if httpResponse.statusCode == 200 {
                     completion(.success(()))
                 } else {
-                    completion(.failure(NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Failed to update device parent status"])))
+                    completion(.failure(NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Failed to send lock command"])))
                 }
             }
         }.resume()

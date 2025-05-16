@@ -59,8 +59,26 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     func userNotificationCenter(_ center: UNUserNotificationCenter,
                               didReceive response: UNNotificationResponse,
                               withCompletionHandler completionHandler: @escaping () -> Void) {
-        // Log the notification tap details
+        // Bridge to SwiftUI for navigation
         let content = response.notification.request.content
+        if let action = content.userInfo["action"] as? String, action == "childUnlocked" {
+            // Set AppStorage flag to trigger navigation in group UserDefaults
+            if let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") {
+                groupDefaults.set(true, forKey: "zapShowRemoteLock")
+                groupDefaults.synchronize()
+            }
+            // Save bundleIdentifier and childDeviceId to parent's group UserDefaults with keys starting with Zap
+            if let bundleIdentifier = content.userInfo["bundleIdentifier"] as? String,
+               let childDeviceId = content.userInfo["childDeviceId"] as? String {
+                if let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") {
+                    groupDefaults.set(childDeviceId, forKey: "ZapChildDeviceId")
+                    groupDefaults.set(bundleIdentifier, forKey: "ZapLastUnlockedBundleIdentifier")
+                    groupDefaults.synchronize()
+                    print("[AppDelegate] Saved ZapChildDeviceId: \(childDeviceId), ZapLastUnlockedBundleIdentifier: \(bundleIdentifier) to group UserDefaults")
+                }
+            }
+        }
+        // Log the notification tap details
         print("Notification tapped:")
         print("Title: \(content.title)")
         print("Body: \(content.body)")
