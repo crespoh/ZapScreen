@@ -37,6 +37,11 @@ struct ContentView: View {
                     .tabItem {
                         Label("Debug", systemImage: "ladybug")
                     }
+                
+                AppIconListView()
+                    .tabItem {
+                        Label("Icons", systemImage: "app.badge")
+                    }
             }
             .navigationTitle("ZapScreen")
             .toolbar {

@@ -132,6 +132,7 @@
 		370EA2D62DB7C698001466A3 /* Exceptions for "ZapScreen" folder in "ZapScreenShieldAction" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Models/AppIconStore.swift,
 				Models/ApplicationProfile.swift,
 				Models/DataBase.swift,
 				Models/ShieldManager.swift,
@@ -142,6 +143,7 @@
 		370EA2D82DB7C698001466A3 /* Exceptions for "ZapScreen" folder in "ZapScreenDeviceActivityMonitor" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Models/AppIconStore.swift,
 				Models/ApplicationProfile.swift,
 				Models/DataBase.swift,
 				Models/ShieldManager.swift,
@@ -159,6 +161,7 @@
 		371304C12DB92A6D008F1E71 /* Exceptions for "ZapScreen" folder in "ZapScreenShieldConfiguration" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Models/AppIconStore.swift,
 				Models/ApplicationProfile.swift,
 				Models/DataBase.swift,
 				Models/ShieldManager.swift,

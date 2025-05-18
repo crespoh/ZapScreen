@@ -13,12 +13,13 @@ import FamilyControls
 struct ZapScreenApp: App {
     
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @StateObject private var appIconStore = AppIconStore()
     
     var body: some Scene {
         WindowGroup {
             RootView()
+                .environmentObject(appIconStore)
         }
-        .modelContainer(for: AppTokenName.self)
     }
         
 }
