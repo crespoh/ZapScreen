@@ -12,25 +12,30 @@ struct AppIconListView: View {
     @EnvironmentObject var appIconStore: AppIconStore
 
     var body: some View {
-        List(appIconStore.apps, id: \.id) { app in
-            HStack {
-                if let uiImage = app.image {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .frame(width: 40, height: 40)
-                        .cornerRadius(8)
-                } else {
-                    Color.gray
-                        .frame(width: 40, height: 40)
-                        .cornerRadius(8)
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(app.app_name)
-                        .font(.headline)
-                    Text(app.bundle_id ?? "No Bundle ID")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+        NavigationView {
+            List(appIconStore.apps, id: \.id) { app in
+                HStack {
+                    if let uiImage = app.image {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .frame(width: 40, height: 40)
+                            .cornerRadius(8)
+                    } else {
+                        Color.gray
+                            .frame(width: 40, height: 40)
+                            .cornerRadius(8)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(app.app_name)
+                            .font(.headline)
+                        Text(app.bundle_id ?? "No Bundle ID")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Text(app.track_name ?? "No Track Name")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
         }
