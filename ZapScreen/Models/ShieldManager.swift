@@ -13,7 +13,6 @@ import DeviceActivity
 
 class ShieldManager: ObservableObject {
     @Environment(\.modelContext) var modelContext
-    @Query private var appTokenNames: [AppTokenName]
     static let shared = ShieldManager()
     
     @Published var discouragedSelections = FamilyActivitySelection()
