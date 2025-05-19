@@ -8,14 +8,18 @@
 import Foundation
 import ManagedSettings
 
-struct ApplicationProfile: Codable, Hashable {
-    let id: UUID
+struct ApplicationProfile: Codable, Hashable, Identifiable {
+    let id = UUID()
     let applicationToken: ApplicationToken
     let applicationName: String
+    let applicationBundleId: String
+    let applicationLocalizedAppName: String
+    // Removed 'application' property because it is not Codable
     
-    init(id: UUID = UUID(), applicationToken: ApplicationToken, applicationName: String) {
+    init(applicationToken: ApplicationToken, applicationName: String, applicationBundleId: String, applicationLocalizedAppName: String) {
         self.applicationToken = applicationToken
-        self.id = id
         self.applicationName = applicationName
+        self.applicationBundleId = applicationBundleId
+        self.applicationLocalizedAppName = applicationLocalizedAppName
     }
 }

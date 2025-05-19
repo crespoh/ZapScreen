@@ -4,20 +4,58 @@
 //
 //  Created by tongteknai on 13/5/25.
 //
+import UIKit
 import SwiftUI
 import SwiftData
 import FamilyControls
 import DeviceActivity
 import ManagedSettings
+import Combine
+
+
+class AppSelectionModel: ObservableObject {
+    @Published var activitySelection = FamilyActivitySelection()
+    private var cancellables = Set<AnyCancellable>()
+    static let shared = AppSelectionModel()
+    
+    init() {
+        activitySelection = savedSelection() ?? FamilyActivitySelection()
+          
+        $activitySelection.sink { selection in
+              self.saveSelection(selection: selection)
+        }
+        .store(in: &cancellables)
+    }
+    
+    func saveSelection(selection: FamilyActivitySelection) {
+    
+        let defaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
+        
+        guard let encoded = try? JSONEncoder().encode(selection) else { return }
+        defaults?.set(encoded, forKey: "FamilyActivitySelection")
+    }
+    
+    func savedSelection() -> FamilyActivitySelection? {
+        
+        let defaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
+        
+        guard let data = defaults?.data(forKey: "FamilyActivitySelection") else { return nil }
+        guard let decoded = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) else { return nil }
+        return decoded
+        
+    }
+}
 
 struct ShieldCustomView: View {
-    @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var appIconStore: AppIconStore
     @State var selection = FamilyActivitySelection()
     @StateObject private var shieldManager = ShieldManager.shared
     @State private var errorMessage: String? = nil
     @State private var showNamePrompt = false
     @State private var enteredAppName: String = ""
+    @StateObject var model = AppSelectionModel.shared
+    private var cancellables = Set<AnyCancellable>()
 
 //    struct AppTokenName: Codable {
 //        let tokenData: Data
@@ -39,7 +77,7 @@ struct ShieldCustomView: View {
     }
 
     var body: some View {
-        let saveDisabled = selection.applicationTokens.count != 1 || selection.categoryTokens.count > 0 || selection.webDomainTokens.count > 0 || errorMessage != nil
+        let saveDisabled = false
         VStack {
             HStack {
                 Button("Cancel") {
@@ -54,13 +92,16 @@ struct ShieldCustomView: View {
             }
             .padding()
 
-            FamilyActivityPicker(selection: $selection)
+            FamilyActivityPicker(selection: $model.activitySelection)
             
             Text(errorMessage ?? "")
             Spacer()
         }
         .navigationBarBackButtonHidden(true)
-        .onChange(of: selection) { newSelection in
+        .onAppear() {
+        }
+        .onChange(of: model.activitySelection) { newSelection in
+            
             let apps = newSelection.applicationTokens
             let cats = newSelection.categoryTokens
             let webs = newSelection.webDomainTokens
@@ -98,33 +139,12 @@ struct ShieldCustomView: View {
                     Spacer()
                     Button("Save") {
                         
-                        let token = selection.applicationTokens.first
-//                        let appTokenName = AppTokenName(name: enteredAppName, token: token!)
-//                        modelContext.insert(appTokenName)
-                        
-                        let applicationProfile = ApplicationProfile(applicationToken: token!, applicationName: enteredAppName)
+                        let token = model.activitySelection.applicationTokens.first
+                        let app = model.activitySelection.applications.first
+                        let applicationProfile = ApplicationProfile(applicationToken: token!, applicationName: enteredAppName, applicationBundleId: app?.bundleIdentifier ?? "", applicationLocalizedAppName: app?.localizedDisplayName ?? "")
                         let dataBase = DataBase()
                         dataBase.addApplicationProfile(applicationProfile)
                         
-//                        if let token = selection.applicationTokens.first, !enteredAppName.isEmpty {
-//                            let userDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") ?? .standard
-//                            let tokenKey: ApplicationToken
-//                            tokenKey = token
-//                            var mapping = userDefaults.dictionary(forKey: tokenNameListKey) as? [String: ApplicationToken] ?? [:]
-//                            mapping[enteredAppName] = tokenKey
-//                            userDefaults.set(mapping, forKey: tokenNameListKey)
-//                            let successMsg = "[ZapScreen] Saved app name '\(enteredAppName)' for tokenKey \(tokenKey)"
-//                            print(successMsg)
-//                            errorMessage = nil
-//                        } else if selection.applicationTokens.first == nil {
-//                            let errMsg = "No application token selected; cannot save app name."
-//                            print("[ZapScreen] \(errMsg)")
-//                            errorMessage = errMsg
-//                        } else {
-//                            let errMsg = "App name is empty; cannot save."
-//                            print("[ZapScreen] \(errMsg)")
-//                            errorMessage = errMsg
-//                        }
                         print("[ShieldCustomView] Save App Token Successfully")
                         showNamePrompt = false
                         enteredAppName = ""
@@ -142,4 +162,5 @@ struct ShieldCustomView: View {
             .padding()
         }
     }
+    
 }

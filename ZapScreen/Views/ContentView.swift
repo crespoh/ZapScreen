@@ -13,17 +13,7 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             TabView {
-                VStack {
-                    NavigationLink(destination: ShieldCustomView()) {
-                        Text("Configure Activities")
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
-                    }
-                    .padding()
-                    }
+                ConfigureActivitiesView()
                     .tabItem {
                         Label("Shield", systemImage: "shield")
                     }

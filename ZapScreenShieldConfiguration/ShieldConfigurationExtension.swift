@@ -16,12 +16,14 @@ import os.log
 class ShieldConfigurationExtension: ShieldConfigurationDataSource {
     // Use a more specific subsystem and category
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.ntt.ZapScreen", category: "ShieldConfiguration")
+    var applicationProfile: ApplicationProfile!
     
     override func configuration(shielding application: Application) -> ShieldConfiguration {
         // Get the application name and token
         let appName = application.localizedDisplayName ?? "Unknown App"
         let appBundle = application.bundleIdentifier ?? "Unknown Bundle"
         
+//        createApplicationProfile(for: application.token!, withName: application.localizedDisplayName, withBundleId: application.bundleIdentifier)
         // Customize the shield as needed for applications.
         return ShieldConfiguration(
             backgroundColor: .systemCyan,
@@ -47,4 +49,16 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
         // Customize the shield as needed for web domains shielded because of their category.
         ShieldConfiguration()
     }
+    
+//    func createApplicationProfile(for application: ApplicationToken, withName name: String? = nil, withBundleId bundleid: String? = nil) {
+//        logger.info("Creating application profile")
+//        self.applicationProfile = ApplicationProfile(
+//            applicationToken: application,
+//            applicationName: name ?? "App \(application.hashValue)", // Use provided name or generate one
+//            applicationBundleId: bundleid ?? ""
+//        )
+//        let dataBase = DataBase()
+//        dataBase.addApplicationProfile(self.applicationProfile)
+//        logger.info("Application profile created with name: \(self.applicationProfile.applicationName)")
+//    }
 }

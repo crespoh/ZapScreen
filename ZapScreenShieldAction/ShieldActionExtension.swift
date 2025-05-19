@@ -60,16 +60,17 @@ class ShieldActionExtension: ShieldActionDelegate {
         completionHandler(.close)
     }
     
-    func createApplicationProfile(for application: ApplicationToken, withName name: String? = nil) {
-        logger.info("Creating application profile")
-        self.applicationProfile = ApplicationProfile(
-            applicationToken: application,
-            applicationName: name ?? "App \(application.hashValue)" // Use provided name or generate one
-        )
-        let dataBase = DataBase()
-        dataBase.addApplicationProfile(self.applicationProfile)
-        logger.info("Application profile created with name: \(self.applicationProfile.applicationName)")
-    }
+//    func createApplicationProfile(for application: ApplicationToken, withName name: String? = nil, withBundleId bundleid: String? = nil) {
+//        logger.info("Creating application profile")
+//        self.applicationProfile = ApplicationProfile(
+//            applicationToken: application,
+//            applicationName: name ?? "App \(application.hashValue)",
+//            applicationBundleId: bundleid ?? ""
+//        )
+//        let dataBase = DataBase()
+//        dataBase.addApplicationProfile(self.applicationProfile)
+//        logger.info("Application profile created with name: \(self.applicationProfile.applicationName)")
+//    }
         
     // Start a device activity for this particular application
     func startMonitoring() {
