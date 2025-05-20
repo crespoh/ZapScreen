@@ -16,7 +16,11 @@ struct AppIconListView: View {
     var body: some View {
         NavigationView {
             List {
-                ForEach(appIconStore.apps, id: \.id) { app in
+                let systemRegion = Locale.current.regionCode ?? "US"
+                let filteredApps = appIconStore.apps.filter { app in
+                    (app.region == nil || app.region?.isEmpty == true || app.region?.lowercased() == systemRegion.lowercased())
+                }
+                ForEach(filteredApps, id: \.id) { app in
                     HStack {
                         if let uiImage = app.image {
                             Image(uiImage: uiImage)

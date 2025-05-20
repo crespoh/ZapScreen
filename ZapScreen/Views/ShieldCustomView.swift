@@ -76,6 +76,32 @@ struct ShieldCustomView: View {
                 TextField("App Name", text: $enteredAppName)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .padding()
+                // Filtered app suggestion list
+                if enteredAppName.count >= 2 {
+                    let systemRegion = Locale.current.regionCode ?? "US"
+                    let filteredApps = appIconStore.apps.filter { app in
+                        (app.region == nil || app.region?.isEmpty == true || app.region?.lowercased() == systemRegion.lowercased()) &&
+                        app.app_name.lowercased().contains(enteredAppName.lowercased())
+                    }
+                    if !filteredApps.isEmpty {
+                        List(filteredApps, id: \ .id) { app in
+                            Button(action: {
+                                enteredAppName = app.app_name
+                            }) {
+                                HStack {
+                                    if let image = app.image {
+                                        Image(uiImage: image)
+                                            .resizable()
+                                            .frame(width: 24, height: 24)
+                                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                                    }
+                                    Text(app.app_name)
+                                }
+                            }
+                        }
+                        .frame(maxHeight: 200)
+                    }
+                }
                 HStack {
                     Button("Cancel") {
                         showNamePrompt = false
