@@ -35,9 +35,6 @@ struct AppIconListView: View {
                             Text(app.bundle_id ?? "No Bundle ID")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
-                            Text(app.track_name ?? "No Track Name")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
                         }
                     }
                 }
