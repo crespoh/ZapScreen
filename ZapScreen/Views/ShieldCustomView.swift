@@ -10,7 +10,6 @@ import SwiftData
 import FamilyControls
 import DeviceActivity
 import ManagedSettings
-import Combine
 
 struct ShieldCustomView: View {
     @Environment(\.dismiss) private var dismiss
@@ -21,26 +20,6 @@ struct ShieldCustomView: View {
     @State private var showNamePrompt = false
     @State private var enteredAppName: String = ""
     @StateObject var model = AppSelectionModel.shared
-    private var cancellables = Set<AnyCancellable>()
-
-//    struct AppTokenName: Codable {
-//        let tokenData: Data
-//        let name: String
-//    }
-
-    private let tokenNameListKey = "ZapAppTokenNameList"
-
-    // Helper to get the selected app token as a unique base64 string (if any)
-    private func tokenKey(_ token: (NSSecureCoding & NSObjectProtocol)?) -> String? {
-        guard let token = token else { return nil }
-        do {
-            let data = try NSKeyedArchiver.archivedData(withRootObject: token, requiringSecureCoding: true)
-            return data.base64EncodedString()
-        } catch {
-            print("Failed to encode token: \(error)")
-            return nil
-        }
-    }
 
     var body: some View {
         let saveDisabled = false

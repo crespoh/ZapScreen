@@ -127,25 +127,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
                 startMonitoring(minutes: minutes)
             }
         }
-        
-        
-        // Retrieve ZapAppTokenNameList from group UserDefaults
-//        if let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data"),
-//           let mapping = groupDefaults.dictionary(forKey: "ZapAppTokenNameList") as? [String: ApplicationToken] {
-//            // Find the tokenKey for this bundleIdentifier
-//            if let tokenKey = mapping.first(where: { $0.key == bundleIdentifier })?.value {
-//                print("[AppDelegate] Found tokenKey for bundleIdentifier \(bundleIdentifier): \(tokenKey)")
-//                // Use the tokenKey directly as the application token
-//                let shieldManager = ShieldManager.shared
-//                shieldManager.discouragedSelections.applicationTokens = [tokenKey]
-//                shieldManager.shieldActivities()
-//                print("[AppDelegate] Shielded app for bundleIdentifier \(bundleIdentifier) using tokenKey directly")
-//            } else {
-//                print("[AppDelegate] No tokenKey found for bundleIdentifier \(bundleIdentifier) in ZapAppTokenNameList")
-//            }
-//        } else {
-//            print("[AppDelegate] No ZapAppTokenNameList found in group UserDefaults")
-//        }
     }
     
     func createApplicationProfile(for application: ApplicationToken, withName name: String? = nil, withBundleId bundleid: String? = nil, withLDN ldn: String? = nil) {

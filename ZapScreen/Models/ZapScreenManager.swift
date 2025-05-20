@@ -441,38 +441,38 @@ URLSession.shared.dataTask(with: request) { data, response, error in
             "bundleIdentifier": bundleIdentifier
         ]
         
-        print("Trigger Unlock Event")
-        
         request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
         
         // --- BEGIN VERBOSE LOGGING ---
-print("[ZapScreenManager] Sending request:")
-print("URL: \(request.url?.absoluteString ?? "<nil>")")
-print("Method: \(request.httpMethod ?? "<nil>")")
-print("Headers: \(request.allHTTPHeaderFields ?? [:])")
-if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
-    print("Body: \(bodyString)")
-} else {
-    print("Body: <none>")
-}
-// --- END VERBOSE LOGGING ---
+        print("[ZapScreenManager] Sending Unlock Event request:")
+        print("URL: \(request.url?.absoluteString ?? "<nil>")")
+        print("Method: \(request.httpMethod ?? "<nil>")")
+        print("Headers: \(request.allHTTPHeaderFields ?? [:])")
+        if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
+            print("Body: \(bodyString)")
+        } else {
+            print("Body: <none>")
+        }
+        // --- END VERBOSE LOGGING ---
 
-URLSession.shared.dataTask(with: request) { data, response, error in
-    // --- BEGIN VERBOSE RESPONSE LOGGING ---
-    if let httpResponse = response as? HTTPURLResponse {
-        print("[ZapScreenManager] Received response:")
-        print("Status code: \(httpResponse.statusCode)")
-        print("Headers: \(httpResponse.allHeaderFields)")
-    }
-    if let data = data, let responseBody = String(data: data, encoding: .utf8) {
-        print("Body: \(responseBody)")
-    } else {
-        print("Body: <none>")
-    }
-    if let error = error {
-        print("[ZapScreenManager] Error: \(error)")
-    }
-    // --- END VERBOSE RESPONSE LOGGING ---
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            
+            // --- BEGIN VERBOSE RESPONSE LOGGING ---
+            if let httpResponse = response as? HTTPURLResponse {
+                print("[ZapScreenManager] Received Unlock Event response:")
+                print("Status code: \(httpResponse.statusCode)")
+                print("Headers: \(httpResponse.allHeaderFields)")
+            }
+            if let data = data, let responseBody = String(data: data, encoding: .utf8) {
+                print("Body: \(responseBody)")
+            } else {
+                print("Body: <none>")
+            }
+            if let error = error {
+                print("[ZapScreenManager] Error: \(error)")
+            }
+            // --- END VERBOSE RESPONSE LOGGING ---
+            
             if let error = error {
                 print("Unlock event failed: \(error)")
                 return
@@ -500,9 +500,7 @@ URLSession.shared.dataTask(with: request) { data, response, error in
         print("Updating device parent status for ID: \(deviceId)")
         print("New parent status: \(isParent)")
         
-
-
-URLSession.shared.dataTask(with: request) { data, response, error in
+        URLSession.shared.dataTask(with: request) { data, response, error in
 
             if let error = error {
                 print("Update failed: \(error)")
@@ -553,21 +551,21 @@ URLSession.shared.dataTask(with: request) { data, response, error in
         // --- END VERBOSE LOGGING ---
 
         URLSession.shared.dataTask(with: request) { data, response, error in
-    // --- BEGIN VERBOSE RESPONSE LOGGING ---
-    if let httpResponse = response as? HTTPURLResponse {
-        print("[ZapScreenManager] Received response:")
-        print("Status code: \(httpResponse.statusCode)")
-        print("Headers: \(httpResponse.allHeaderFields)")
-    }
-    if let data = data, let responseBody = String(data: data, encoding: .utf8) {
-        print("Body: \(responseBody)")
-    } else {
-        print("Body: <none>")
-    }
-    if let error = error {
-        print("[ZapScreenManager] Error: \(error)")
-    }
-    // --- END VERBOSE RESPONSE LOGGING ---
+            // --- BEGIN VERBOSE RESPONSE LOGGING ---
+            if let httpResponse = response as? HTTPURLResponse {
+                print("[ZapScreenManager] Received response:")
+                print("Status code: \(httpResponse.statusCode)")
+                print("Headers: \(httpResponse.allHeaderFields)")
+            }
+            if let data = data, let responseBody = String(data: data, encoding: .utf8) {
+                print("Body: \(responseBody)")
+            } else {
+                print("Body: <none>")
+            }
+            if let error = error {
+                print("[ZapScreenManager] Error: \(error)")
+            }
+            // --- END VERBOSE RESPONSE LOGGING ---
             if let error = error {
                 print("UnLock command failed: \(error)")
                 completion(.failure(error))
@@ -602,33 +600,33 @@ URLSession.shared.dataTask(with: request) { data, response, error in
         print("New device name: \(deviceName)")
         
         // --- BEGIN VERBOSE LOGGING ---
-print("[ZapScreenManager] Sending request:")
-print("URL: \(request.url?.absoluteString ?? "<nil>")")
-print("Method: \(request.httpMethod ?? "<nil>")")
-print("Headers: \(request.allHTTPHeaderFields ?? [:])")
-if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
-    print("Body: \(bodyString)")
-} else {
-    print("Body: <none>")
-}
-// --- END VERBOSE LOGGING ---
+        print("[ZapScreenManager] Sending request:")
+        print("URL: \(request.url?.absoluteString ?? "<nil>")")
+        print("Method: \(request.httpMethod ?? "<nil>")")
+        print("Headers: \(request.allHTTPHeaderFields ?? [:])")
+        if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
+            print("Body: \(bodyString)")
+        } else {
+            print("Body: <none>")
+        }
+        // --- END VERBOSE LOGGING ---
 
-URLSession.shared.dataTask(with: request) { data, response, error in
-    // --- BEGIN VERBOSE RESPONSE LOGGING ---
-    if let httpResponse = response as? HTTPURLResponse {
-        print("[ZapScreenManager] Received response:")
-        print("Status code: \(httpResponse.statusCode)")
-        print("Headers: \(httpResponse.allHeaderFields)")
-    }
-    if let data = data, let responseBody = String(data: data, encoding: .utf8) {
-        print("Body: \(responseBody)")
-    } else {
-        print("Body: <none>")
-    }
-    if let error = error {
-        print("[ZapScreenManager] Error: \(error)")
-    }
-    // --- END VERBOSE RESPONSE LOGGING ---
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            // --- BEGIN VERBOSE RESPONSE LOGGING ---
+            if let httpResponse = response as? HTTPURLResponse {
+                print("[ZapScreenManager] Received response:")
+                print("Status code: \(httpResponse.statusCode)")
+                print("Headers: \(httpResponse.allHeaderFields)")
+            }
+            if let data = data, let responseBody = String(data: data, encoding: .utf8) {
+                print("Body: \(responseBody)")
+            } else {
+                print("Body: <none>")
+            }
+            if let error = error {
+                print("[ZapScreenManager] Error: \(error)")
+            }
+            // --- END VERBOSE RESPONSE LOGGING ---
             if let error = error {
                 print("Update failed: \(error)")
                 completion(.failure(error))
@@ -664,33 +662,33 @@ URLSession.shared.dataTask(with: request) { data, response, error in
         print("Payload: \(payload)")
         
         // --- BEGIN VERBOSE LOGGING ---
-print("[ZapScreenManager] Sending request:")
-print("URL: \(request.url?.absoluteString ?? "<nil>")")
-print("Method: \(request.httpMethod ?? "<nil>")")
-print("Headers: \(request.allHTTPHeaderFields ?? [:])")
-if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
-    print("Body: \(bodyString)")
-} else {
-    print("Body: <none>")
-}
-// --- END VERBOSE LOGGING ---
+        print("[ZapScreenManager] Sending request:")
+        print("URL: \(request.url?.absoluteString ?? "<nil>")")
+        print("Method: \(request.httpMethod ?? "<nil>")")
+        print("Headers: \(request.allHTTPHeaderFields ?? [:])")
+        if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
+            print("Body: \(bodyString)")
+        } else {
+            print("Body: <none>")
+        }
+        // --- END VERBOSE LOGGING ---
 
-URLSession.shared.dataTask(with: request) { data, response, error in
-    // --- BEGIN VERBOSE RESPONSE LOGGING ---
-    if let httpResponse = response as? HTTPURLResponse {
-        print("[ZapScreenManager] Received response:")
-        print("Status code: \(httpResponse.statusCode)")
-        print("Headers: \(httpResponse.allHeaderFields)")
-    }
-    if let data = data, let responseBody = String(data: data, encoding: .utf8) {
-        print("Body: \(responseBody)")
-    } else {
-        print("Body: <none>")
-    }
-    if let error = error {
-        print("[ZapScreenManager] Error: \(error)")
-    }
-    // --- END VERBOSE RESPONSE LOGGING ---
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            // --- BEGIN VERBOSE RESPONSE LOGGING ---
+            if let httpResponse = response as? HTTPURLResponse {
+                print("[ZapScreenManager] Received response:")
+                print("Status code: \(httpResponse.statusCode)")
+                print("Headers: \(httpResponse.allHeaderFields)")
+            }
+            if let data = data, let responseBody = String(data: data, encoding: .utf8) {
+                print("Body: \(responseBody)")
+            } else {
+                print("Body: <none>")
+            }
+            if let error = error {
+                print("[ZapScreenManager] Error: \(error)")
+            }
+            // --- END VERBOSE RESPONSE LOGGING ---
             if let error = error {
                 print("Relationship creation failed: \(error)")
                 completion(.failure(error))
