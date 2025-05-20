@@ -51,6 +51,11 @@ struct DeviceListView: View {
             } message: {
                 Text("You do not have permission to delete devices.")
             }
+            .alert("Cannot Delete This Device", isPresented: $showCannotDeleteSelfAlert) {
+                Button("OK") { showCannotDeleteSelfAlert = false }
+            } message: {
+                Text("You cannot delete the device you are currently using.")
+            }
             .onAppear {
                 
                 viewModel.fetchDevices()
@@ -74,6 +79,8 @@ struct DeviceListView: View {
 
     // State for showing delete permission alert
     @State private var showDeleteNotAllowedAlert = false
+    // State for showing cannot-delete-self alert
+    @State private var showCannotDeleteSelfAlert = false
 
     // Delete device at offsets
     private func deleteDevice(at offsets: IndexSet) {
@@ -81,7 +88,14 @@ struct DeviceListView: View {
             showDeleteNotAllowedAlert = true
             return
         }
+        // Get current device ID from UserDefaults
+        let currentDeviceId = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")?.string(forKey: "ZapDeviceId")
         let toDelete = offsets.map { devices[$0] }
+        // Check if any selected device is the current device
+        if toDelete.contains(where: { $0.id == currentDeviceId }) {
+            showCannotDeleteSelfAlert = true
+            return
+        }
         for device in toDelete {
             viewModel.deleteDevice(deviceId: device.id)
         }
