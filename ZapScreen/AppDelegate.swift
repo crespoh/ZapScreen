@@ -14,14 +14,53 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     var applicationProfile: ApplicationProfile!
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        
         // Set notification center delegate
         UNUserNotificationCenter.current().delegate = self
-        
         // Register for remote notifications
         application.registerForRemoteNotifications()
-        
+        // Ensure deviceId is stored in group UserDefaults
+        storeDeviceIdIfNeeded()
+        // Check device registration on launch
+        checkDeviceRegistrationAndHandleRole()
         return true
+    }
+
+    func applicationWillEnterForeground(_ application: UIApplication) {
+        // Check device registration when app enters foreground
+        checkDeviceRegistrationAndHandleRole()
+    }
+
+    private func checkDeviceRegistrationAndHandleRole() {
+        // Get deviceId from group UserDefaults (not deviceToken!)
+        guard let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data"),
+              let deviceId = groupDefaults.string(forKey: "ZapDeviceId") else {
+            print("[AppDelegate] No deviceId found for registration check.")
+            return
+        }
+        ZapScreenManager().checkDeviceRegistration(deviceId: deviceId) { result in
+            switch result {
+            case .success(let response):
+                print("[AppDelegate] Device registration check succeeded: \(response)")
+                // If the response indicates not registered, remove keys
+                if let isRegistered = (response as? DeviceCheckResponse)?.isRegistered, !isRegistered {
+                    print("[AppDelegate] Device is not registered. Removing selectedRole and isLoggedIn.")
+                    UserDefaults.standard.removeObject(forKey: "selectedRole")
+                    UserDefaults.standard.removeObject(forKey: "isLoggedIn")
+                }
+            case .failure(let error):
+                print("[AppDelegate] Device registration check failed: \(error)")
+            }
+        }
+    }
+
+    // Store deviceId in group UserDefaults if not already present
+    private func storeDeviceIdIfNeeded() {
+        guard let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") else { return }
+        if groupDefaults.string(forKey: "ZapDeviceId") == nil,
+           let deviceId = UIDevice.current.identifierForVendor?.uuidString {
+            groupDefaults.set(deviceId, forKey: "ZapDeviceId")
+            print("[AppDelegate] Stored deviceId to group UserDefaults: \(deviceId)")
+        }
     }
         
     // Handle successful registration

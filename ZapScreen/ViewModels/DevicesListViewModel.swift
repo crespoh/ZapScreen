@@ -33,7 +33,7 @@ class DevicesListViewModel: ObservableObject {
                 switch result {
                 case .success:
                     // Update local device state
-                    if let index = self?.devices.firstIndex(where: { $0.deviceId == deviceId }) {
+                    if let index = self?.devices.firstIndex(where: { $0.id == deviceId }) {
                         self?.devices[index].isParent = isParent
                     }
                     self?.error = nil
@@ -53,13 +53,31 @@ class DevicesListViewModel: ObservableObject {
                 switch result {
                 case .success:
                     // Update local device state
-                    if let index = self?.devices.firstIndex(where: { $0.deviceId == deviceId }) {
+                    if let index = self?.devices.firstIndex(where: { $0.id == deviceId }) {
                         self?.devices[index].deviceName = deviceName
                     }
                     self?.error = nil
                 case .failure(let error):
                     self?.error = error
                     print("Error updating device name: \(error)")
+                }
+            }
+        }
+    }
+        
+    func deleteDevice(deviceId: String) {
+        isLoading = true
+        ZapScreenManager.shared.deleteDevice(deviceId: deviceId) { [weak self] result in
+            DispatchQueue.main.async {
+                self?.isLoading = false
+                switch result {
+                case .success:
+                    // Remove the device from the local list
+                    self?.devices.removeAll { $0.id == deviceId }
+                    self?.error = nil
+                case .failure(let error):
+                    self?.error = error
+                    print("Error deleting device: \(error)")
                 }
             }
         }

@@ -1,30 +1,38 @@
 import SwiftUI
+import Combine
 
 // Example SwiftUI view to display the device list
 struct DeviceListView: View {
     @StateObject private var viewModel = DevicesListViewModel()
     @AppStorage("selectedRole") private var selectedRole: String?
-    
+    @State private var devices: [DeviceListResponse.Device] = []
+      
     private var deviceIdFromGroupDefaults: String? {
         let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
         return groupDefaults?.string(forKey: "ZapDeviceId")
     }
     
+    // Computed property to check if the logged-in user is a parent
+    private var canDeleteDevices: Bool {
+        selectedRole == "Parent"
+    }
+    
     var body: some View {
+        
         NavigationView {
             List {
                 if viewModel.isLoading {
                     ProgressView("Loading devices...")
-                } else {
-                    ForEach(viewModel.devices) { device in
-                        DeviceRow(
-                            device: device,
-                            viewModel: viewModel,
-                            editedDevices: .constant([:]),
-                            selectedRole: selectedRole
-                        )
-                    }
                 }
+                ForEach(devices) { device in
+                    DeviceRow(
+                        device: device,
+                        viewModel: viewModel,
+                        editedDevices: .constant([:]),
+                        selectedRole: selectedRole
+                    )
+                }
+                .onDelete(perform: canDeleteDevices ? deleteDevice : nil)
             }
             .navigationTitle("Devices")
             .refreshable {
@@ -38,69 +46,47 @@ struct DeviceListView: View {
             } message: {
                 Text(viewModel.error?.localizedDescription ?? "Unknown error")
             }
+            .alert("Not allowed", isPresented: $showDeleteNotAllowedAlert) {
+                Button("OK") { showDeleteNotAllowedAlert = false }
+            } message: {
+                Text("You do not have permission to delete devices.")
+            }
             .onAppear {
+                
                 viewModel.fetchDevices()
+                // Sync local devices array when devices are loaded
+                viewModel.$devices
+                    .receive(on: RunLoop.main)
+                    .sink { loaded in
+                        print("Device IDs: \(devices.map { $0.id })")
+                        devices = loaded
+                    }
+                    .store(in: &cancellables)
             }
             .toolbar {
-                // No save changes button
+
             }
         }
     }
     
-//    private func saveChanges() {
-//        let dispatchGroup = DispatchGroup()
-//        let updateErrors: [String] = []
-//        
-//        // First update all device changes
-//        for (deviceId, changes) in editedDevices {
-//            dispatchGroup.enter()
-//            
-//            // Update device name
-//            viewModel.updateDeviceName(deviceId: deviceId, deviceName: changes.deviceName)
-//            
-//            // Update parent status
-//            viewModel.updateDeviceParentStatus(deviceId: deviceId, isParent: changes.isParent)
-//            
-//            // Update local state
-//            if let index = viewModel.devices.firstIndex(where: { $0.deviceId == deviceId }) {
-//                viewModel.devices[index].deviceName = changes.deviceName
-//                viewModel.devices[index].isParent = changes.isParent
-//            }
-//            
-//            dispatchGroup.leave()
-//        }
-//        
-//        // Wait for all updates to complete
-//        dispatchGroup.notify(queue: .main) { [weak viewModel] in
-//            guard let viewModel = viewModel else { return }
-//            
-//            if !updateErrors.isEmpty {
-//                // Show error alert if any updates failed
-//                viewModel.error = NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: updateErrors.joined(separator: "\n")])
-//                return
-//            }
-//            
-//            // Get all parent and child devices from the updated local state
-//            let parentDevices = viewModel.devices.filter { $0.isParent }
-//            let childDevices = viewModel.devices.filter { !$0.isParent }
-//            
-//            print("Parent devices after update:", parentDevices)
-//            print("Child devices after update:", childDevices)
-//            
-//            // Only proceed if we have at least one parent and one child
-//            if !parentDevices.isEmpty && !childDevices.isEmpty {
-//                print("Trigger Child Parent relationship")
-//                // Create relationships between all parents and children
-//                for parent in parentDevices {
-//                    for child in childDevices {
-//                        viewModel.updateDeviceRelationship(parentDeviceId: parent.deviceId, childDeviceId: child.deviceId)
-//                    }
-//                }
-//            }
-//            
-//            editedDevices.removeAll()
-//        }
-//    }
+    // For Combine subscription storage
+    @State private var cancellables: Set<AnyCancellable> = []
+
+    // State for showing delete permission alert
+    @State private var showDeleteNotAllowedAlert = false
+
+    // Delete device at offsets
+    private func deleteDevice(at offsets: IndexSet) {
+        guard canDeleteDevices else {
+            showDeleteNotAllowedAlert = true
+            return
+        }
+        let toDelete = offsets.map { devices[$0] }
+        for device in toDelete {
+            viewModel.deleteDevice(deviceId: device.id)
+        }
+        devices.remove(atOffsets: offsets)
+    }
 }
 
 struct DeviceRow: View {
@@ -114,57 +100,16 @@ struct DeviceRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-//                if selectedRole == UserRole.child.rawValue {
-//                    // View-only: show name as text
-//                    Text(device.deviceName)
-//                        .font(.headline)
-//                } else {
-//                    if isEditingName {
-//                        TextField("Device Name", text: $editedName)
-//                            .textFieldStyle(RoundedBorderTextFieldStyle())
-//                            .onSubmit {
-//                                if !editedName.isEmpty {
-//                                    // Update the edited devices dictionary instead of making an immediate API call
-//                                    var currentChanges = editedDevices[device.deviceId] ?? (isParent: device.isParent, deviceName: device.deviceName)
-//                                    currentChanges.deviceName = editedName
-//                                    editedDevices[device.deviceId] = currentChanges
-//                                }
-//                                isEditingName = false
-//                            }
-//                    } else {
-//                        Text(editedDevices[device.deviceId]?.deviceName ?? device.deviceName)
-//                            .font(.headline)
-//                            .onTapGesture {
-//                                editedName = editedDevices[device.deviceId]?.deviceName ?? device.deviceName
-//                                isEditingName = true
-//                            }
-//                    }
-//                }
+
                 Text(device.deviceName)
                     .font(.headline)
                 Spacer()
-//                if selectedRole != UserRole.child.rawValue {
-//                    Toggle("Parent", isOn: Binding(
-//                        get: { editedDevices[device.deviceId]?.isParent ?? device.isParent },
-//                        set: { newValue in
-//                            var currentChanges = editedDevices[device.deviceId] ?? (isParent: device.isParent, deviceName: device.deviceName)
-//                            currentChanges.isParent = newValue
-//                            editedDevices[device.deviceId] = currentChanges
-//                        }
-//                    ))
-//                    .labelsHidden()
-//                } else {
-//                    // For child, just show parent/child status as text
-//                    Text(device.isParent ? "Parent" : "Child")
-//                        .font(.subheadline)
-//                        .foregroundColor(.gray)
-//                }
                 Text(device.isParent ? "Parent" : "Child")
                     .font(.subheadline)
                     .foregroundColor(.gray)
             }
             
-            Text(device.deviceId)
+            Text(device.id)
                 .font(.subheadline)
                 .foregroundColor(.gray)
             

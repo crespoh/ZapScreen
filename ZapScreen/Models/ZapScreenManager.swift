@@ -62,15 +62,20 @@ struct DeviceListResponse: Codable {
     let devices: [Device]
     
     struct Device: Codable, Identifiable {
+        let id: String         // Unique identifier for Identifiable
         let deviceToken: String
-        let deviceId: String
         var deviceName: String
         var isParent: Bool
         let createdAt: String
-        
-        // Add id property for Identifiable conformance
-        var id: String { deviceId }
-        
+
+        enum CodingKeys: String, CodingKey {
+            case id = "deviceId"      // Map backend 'deviceId' to Swift 'id'
+            case deviceToken
+            case deviceName
+            case isParent
+            case createdAt
+        }
+
         // Computed property to convert string to date
         var createdAtDate: Date? {
             let formatter = ISO8601DateFormatter()
@@ -187,12 +192,12 @@ class ZapScreenManager {
                     let group = DispatchGroup()
                     for parent in parents {
                         for child in children {
-                            let pairKey = parent.deviceId + ":" + child.deviceId
+                            let pairKey = parent.id + ":" + child.id
                             if !triggeredPairs.contains(pairKey) {
                                 triggeredPairs.insert(pairKey)
-                                relationships.append((parent: parent.deviceId, child: child.deviceId))
+                                relationships.append((parent: parent.id, child: child.id))
                                 group.enter()
-                                self.updateDeviceRelationship(parentDeviceId: parent.deviceId, childDeviceId: child.deviceId) { _ in
+                                self.updateDeviceRelationship(parentDeviceId: parent.id, childDeviceId: child.id) { _ in
                                     group.leave()
                                 }
                             }
@@ -644,6 +649,54 @@ URLSession.shared.dataTask(with: request) { data, response, error in
         }.resume()
     }
     
+    /// Deletes a device by deviceId from the server.
+    /// - Parameters:
+    ///   - deviceId: The ID of the device to delete.
+    ///   - completion: Completion handler with Result<Void, Error>.
+    func deleteDevice(deviceId: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        let url = URL(string: "\(baseURL)/api/devices/\(deviceId)")!
+        var request = URLRequest(url: url)
+        injectUserHeaders(into: &request)
+        request.httpMethod = "DELETE"
+        print("[ZapScreenManager] Sending DELETE request:")
+        print("URL: \(request.url?.absoluteString ?? "<nil>")")
+        print("Method: \(request.httpMethod ?? "<nil>")")
+        print("Headers: \(request.allHTTPHeaderFields ?? [:])")
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let httpResponse = response as? HTTPURLResponse {
+                print("[ZapScreenManager] Received response:")
+                print("Status code: \(httpResponse.statusCode)")
+                print("Headers: \(httpResponse.allHeaderFields)")
+            }
+            if let data = data, let responseBody = String(data: data, encoding: .utf8) {
+                print("Body: \(responseBody)")
+            } else {
+                print("Body: <none>")
+            }
+            if let error = error {
+                print("[ZapScreenManager] Error: \(error)")
+                completion(.failure(error))
+                return
+            }
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode == 200 {
+                    completion(.success(()))
+                } else {
+                    let message: String
+                    if let data = data, let body = String(data: data, encoding: .utf8) {
+                        message = body
+                    } else {
+                        message = "Failed to delete device."
+                    }
+                    completion(.failure(NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: message])))
+                }
+            } else {
+                completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No HTTP response received."])))
+            }
+        }.resume()
+    }
+
     func updateDeviceRelationship(parentDeviceId: String, childDeviceId: String, completion: @escaping (Result<DeviceRelationshipResponse, Error>) -> Void) {
         let url = URL(string: "\(baseURL)/api/relationships/link")!
         var request = URLRequest(url: url)

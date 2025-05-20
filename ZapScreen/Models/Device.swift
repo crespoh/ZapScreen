@@ -1,7 +1,8 @@
 import Foundation
 
 struct Device: Identifiable, Codable {
-    let id: String
+    let uuid: UUID = UUID()
+    let id: String // Not used for Identifiable anymore, but kept for backend mapping
     let name: String
     let model: String
     let lastSeen: Date
