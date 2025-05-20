@@ -12,40 +12,6 @@ import DeviceActivity
 import ManagedSettings
 import Combine
 
-
-class AppSelectionModel: ObservableObject {
-    @Published var activitySelection = FamilyActivitySelection()
-    private var cancellables = Set<AnyCancellable>()
-    static let shared = AppSelectionModel()
-    
-    init() {
-        activitySelection = savedSelection() ?? FamilyActivitySelection()
-          
-        $activitySelection.sink { selection in
-              self.saveSelection(selection: selection)
-        }
-        .store(in: &cancellables)
-    }
-    
-    func saveSelection(selection: FamilyActivitySelection) {
-    
-        let defaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
-        
-        guard let encoded = try? JSONEncoder().encode(selection) else { return }
-        defaults?.set(encoded, forKey: "FamilyActivitySelection")
-    }
-    
-    func savedSelection() -> FamilyActivitySelection? {
-        
-        let defaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
-        
-        guard let data = defaults?.data(forKey: "FamilyActivitySelection") else { return nil }
-        guard let decoded = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) else { return nil }
-        return decoded
-        
-    }
-}
-
 struct ShieldCustomView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var appIconStore: AppIconStore
@@ -141,7 +107,7 @@ struct ShieldCustomView: View {
                         
                         let token = model.activitySelection.applicationTokens.first
                         let app = model.activitySelection.applications.first
-                        let applicationProfile = ApplicationProfile(applicationToken: token!, applicationName: enteredAppName, applicationBundleId: app?.bundleIdentifier ?? "", applicationLocalizedAppName: app?.localizedDisplayName ?? "")
+                        let applicationProfile = ApplicationProfile(applicationToken: token!, applicationName: enteredAppName)
                         let dataBase = DataBase()
                         dataBase.addApplicationProfile(applicationProfile)
                         
@@ -149,9 +115,9 @@ struct ShieldCustomView: View {
                         showNamePrompt = false
                         enteredAppName = ""
                         // Now do the original save logic
-                        shieldManager.discouragedSelections.applicationTokens = selection.applicationTokens
-                        shieldManager.discouragedSelections.categoryTokens = selection.categoryTokens
-                        shieldManager.discouragedSelections.webDomainTokens = selection.webDomainTokens
+                        shieldManager.discouragedSelections.applicationTokens = model.activitySelection.applicationTokens
+                        shieldManager.discouragedSelections.categoryTokens = model.activitySelection.categoryTokens
+                        shieldManager.discouragedSelections.webDomainTokens = model.activitySelection.webDomainTokens
                         shieldManager.shieldActivities()
                         dismiss()
                     }

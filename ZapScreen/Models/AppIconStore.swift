@@ -16,18 +16,6 @@ struct AppIconData: Decodable, Identifiable {
     let logo_image: BinaryWrapper?
     let bundle_id: String?
     let track_name: String?
-
-    // Use mongoId.oid as Swift's id
-//    var id: String { _id.oid } // Conform to Identifiable using $oid as id
-//
-//    struct OIDWrapper: Decodable {
-//        let oid: String
-//
-//        enum CodingKeys: String, CodingKey {
-//            case oid = "$oid"
-//        }
-//    }
-    
     
     struct BinaryWrapper: Decodable {
         let binary: BinaryData

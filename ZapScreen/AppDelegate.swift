@@ -123,9 +123,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         for profile in profiles {
             if profile.value.applicationName == bundleIdentifier {
                 let applicationToken = profile.value.applicationToken
-                let applicationBundleId = profile.value.applicationBundleId
-                let applicationLocalizedDisplayName = profile.value.applicationLocalizedAppName
-                createApplicationProfile(for: applicationToken, withName: bundleIdentifier, withBundleId: applicationBundleId, withLDN: applicationLocalizedDisplayName)
+                createApplicationProfile(for: applicationToken, withName: bundleIdentifier)
                 startMonitoring(minutes: minutes)
             }
         }
@@ -154,9 +152,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
         self.applicationProfile = ApplicationProfile(
             applicationToken: application,
-            applicationName: name ?? "App \(application.hashValue)", // Use provided name or generate one
-            applicationBundleId: bundleid ?? "",
-            applicationLocalizedAppName: ldn ?? ""
+            applicationName: name ?? "App \(application.hashValue)" // Use provided name or generate one
         )
         let dataBase = DataBase()
         dataBase.addApplicationProfile(self.applicationProfile)
