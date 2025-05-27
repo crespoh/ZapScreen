@@ -4,8 +4,8 @@ import Combine
 // Example SwiftUI view to display the device list
 struct DeviceListView: View {
     @StateObject private var viewModel = DevicesListViewModel()
-    @AppStorage("selectedRole") private var selectedRole: String?
-    @State private var devices: [DeviceListResponse.Device] = []
+    @AppStorage("selectedRole", store: UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")) private var selectedRole: String?
+    @State private var devices: [SupabaseDevice] = []
       
     private var deviceIdFromGroupDefaults: String? {
         let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
@@ -63,7 +63,7 @@ struct DeviceListView: View {
                 viewModel.$devices
                     .receive(on: RunLoop.main)
                     .sink { loaded in
-                        print("Device IDs: \(devices.map { $0.id })")
+                        print("Device IDs: \(devices.map { $0.device_id })")
                         devices = loaded
                     }
                     .store(in: &cancellables)
@@ -92,19 +92,19 @@ struct DeviceListView: View {
         let currentDeviceId = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")?.string(forKey: "ZapDeviceId")
         let toDelete = offsets.map { devices[$0] }
         // Check if any selected device is the current device
-        if toDelete.contains(where: { $0.id == currentDeviceId }) {
+        if toDelete.contains(where: { $0.device_id == currentDeviceId }) {
             showCannotDeleteSelfAlert = true
             return
         }
         for device in toDelete {
-            viewModel.deleteDevice(deviceId: device.id)
+            viewModel.deleteDevice(deviceId: device.device_id)
         }
         devices.remove(atOffsets: offsets)
     }
 }
 
 struct DeviceRow: View {
-    let device: DeviceListResponse.Device
+    let device: SupabaseDevice
     @ObservedObject var viewModel: DevicesListViewModel
     @Binding var editedDevices: [String: (isParent: Bool, deviceName: String)]
     let selectedRole: String?
@@ -115,15 +115,15 @@ struct DeviceRow: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
 
-                Text(device.deviceName)
+                Text(device.device_name)
                     .font(.headline)
                 Spacer()
-                Text(device.isParent ? "Parent" : "Child")
+                Text(device.is_parent ? "Parent" : "Child")
                     .font(.subheadline)
                     .foregroundColor(.gray)
             }
             
-            Text(device.id)
+            Text(device.device_id)
                 .font(.subheadline)
                 .foregroundColor(.gray)
             

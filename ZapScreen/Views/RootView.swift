@@ -2,9 +2,9 @@ import SwiftUI
 import FamilyControls
 
 struct RootView: View {
-    @AppStorage("isLoggedIn") private var isLoggedIn = false
-    @AppStorage("selectedRole") private var selectedRoleRaw: String?
-    @AppStorage("isAuthorized") private var isAuthorized = false
+    @AppStorage("isLoggedIn", store: UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")) private var isLoggedIn = false
+    @AppStorage("selectedRole", store: UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")) private var selectedRoleRaw: String?
+    @AppStorage("isAuthorized", store: UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")) private var isAuthorized = false
     let center = AuthorizationCenter.shared
 
     var selectedRole: UserRole? {

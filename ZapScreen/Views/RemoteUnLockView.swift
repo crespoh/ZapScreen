@@ -3,7 +3,7 @@ import SwiftUI
 struct RemoteUnLockView: View {
     @State private var isSending = false
     @State private var sendResult: String?
-    @AppStorage("selectedRole") private var selectedRole: String?
+    @AppStorage("selectedRole", store: UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")) private var selectedRole: String?
     
     var body: some View {
         VStack(spacing: 24) {

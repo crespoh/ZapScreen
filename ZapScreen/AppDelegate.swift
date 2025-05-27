@@ -37,18 +37,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             print("[AppDelegate] No deviceId found for registration check.")
             return
         }
-        ZapScreenManager().checkDeviceRegistration(deviceId: deviceId) { result in
-            switch result {
-            case .success(let response):
-                print("[AppDelegate] Device registration check succeeded: \(response)")
-                // If the response indicates not registered, remove keys
-                if let isRegistered = (response as? DeviceCheckResponse)?.isRegistered, !isRegistered {
-                    print("[AppDelegate] Device is not registered. Removing selectedRole and isLoggedIn.")
-                    UserDefaults.standard.removeObject(forKey: "selectedRole")
-                    UserDefaults.standard.removeObject(forKey: "isLoggedIn")
+        Task {
+            do {
+                // Check device registration in Supabase
+                let exists = try await SupabaseManager.shared.deviceExists(deviceToken: "")
+                if !exists {
+                    print("[AppDelegate] Device is not registered. Removing selectedRole and isLoggedIn from group UserDefaults.")
+                    groupDefaults.removeObject(forKey: "selectedRole")
+                    groupDefaults.removeObject(forKey: "isLoggedIn")
+                } else {
+                    print("[AppDelegate] Device is registered in Supabase.")
                 }
-            case .failure(let error):
-                print("[AppDelegate] Device registration check failed: \(error)")
+            } catch {
+                print("[AppDelegate] Supabase device registration check failed: \(error)")
             }
         }
     }

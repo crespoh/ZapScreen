@@ -23,6 +23,7 @@ struct SelectionView: View {
     @State private var pendingRole: UserRole? = nil
     @State private var showingNamePrompt = false
     @State private var deviceOwnerName: String = ""
+    @State private var hasCheckedStoredRole = false
     var body: some View {
         VStack(spacing: 32) {
             Text("Who is using this device?")
@@ -50,6 +51,19 @@ struct SelectionView: View {
             Spacer()
         }
         .padding()
+        .onAppear {
+            // Skip selection if already selected
+            guard !hasCheckedStoredRole else { return }
+            hasCheckedStoredRole = true
+            let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
+            if let savedRole = groupDefaults?.string(forKey: "zap_userRole"),
+               let userRole = UserRole(rawValue: savedRole) {
+                // Directly call onSelect to skip selection UI
+                DispatchQueue.main.async {
+                    onSelect(userRole)
+                }
+            }
+        }
         .sheet(isPresented: $showingNamePrompt) {
             VStack(spacing: 20) {
                 Text("Who does this device belong to?")
@@ -61,29 +75,33 @@ struct SelectionView: View {
                     guard let role = pendingRole else { return }
                     let isParent = (role == .parent)
                     let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
-                    // Save DeviceName to group UserDefaults
+                    // Save DeviceName and Role to group UserDefaults
+                    groupDefaults?.set(role.rawValue, forKey: "zap_userRole")
                     groupDefaults?.set(deviceOwnerName, forKey: "DeviceName")
                     if let deviceId = groupDefaults?.string(forKey: "ZapDeviceId") {
-                        // First update device name on server
-                        ZapScreenManager.shared.updateDeviceName(deviceId: deviceId, deviceName: deviceOwnerName) { result in
-                            switch result {
-                            case .success:
-                                print("Device name updated on server.")
-                            case .failure(let error):
-                                print("Failed to update device name on server: \(error)")
+                        // Update device name and parent status using SupabaseManager
+                        Task {
+                            do {
+                                _ = try await SupabaseManager.shared.updateDeviceName(newName: deviceOwnerName)
+                                print("Device name updated on Supabase.")
+                            } catch {
+                                print("Failed to update device name on Supabase: \(error)")
                             }
-                            // Then update parent status
-                            ZapScreenManager.shared.updateDeviceParentStatus(deviceId: deviceId, isParent: isParent) { result in
-                                switch result {
-                                case .success:
-                                    ZapScreenManager.shared.checkDeviceRelationship { _ in }
-                                case .failure(let error):
-                                    print("Failed to update device parent status: \(error)")
+                            do {
+                                _ = try await SupabaseManager.shared.updateDeviceParentStatus(isParent: isParent)
+                                print("Device parent status updated on Supabase.")
+                                do {
+                                    let pairs = try await SupabaseManager.shared.checkDeviceRelationship()
+                                    print("Device relationships checked. Created pairs: \(pairs)")
+                                } catch {
+                                    print("Failed to check device relationships: \(error)")
                                 }
-                                DispatchQueue.main.async {
-                                    showingNamePrompt = false
-                                    onSelect(role)
-                                }
+                            } catch {
+                                print("Failed to update device parent status on Supabase: \(error)")
+                            }
+                            await MainActor.run {
+                                showingNamePrompt = false
+                                onSelect(role)
                             }
                         }
                     } else {

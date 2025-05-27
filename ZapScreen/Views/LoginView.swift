@@ -2,13 +2,16 @@ import SwiftUI
 import Foundation
 import UserNotifications
 import Network
+import Supabase
 
 struct LoginView: View {
+    @Environment(\.scenePhase) private var scenePhase // For app lifecycle
+    // ... other properties ...
     @State private var showPermissionAlert = false
     @State private var permissionMessage = ""
     @State private var notificationGranted: Bool? = nil
     @State private var localNetworkGranted: Bool? = nil
-    @AppStorage("isLoggedIn") private var isLoggedIn = false
+    @AppStorage("isLoggedIn", store: UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")) private var isLoggedIn = false
     @State private var username: String = ""
     @State private var password: String = ""
     @State private var errorMessage: String? = nil
@@ -17,6 +20,7 @@ struct LoginView: View {
     @State private var registrationPollTimer: Timer? = nil
 
     var body: some View {
+
         VStack(spacing: 24) {
             Text("ZapScreen Login")
                 .font(.largeTitle)
@@ -47,6 +51,8 @@ struct LoginView: View {
         .alert(isPresented: $showPermissionAlert) {
             Alert(title: Text("Permission Results"), message: Text(permissionMessage), dismissButton: .default(Text("OK")))
         }
+        // Restore session on appear (once)
+        .onAppear(perform: restoreSessionIfNeeded)
         // Authorizing overlay
         if isAuthorizing {
             Color.black.opacity(0.4)
@@ -80,47 +86,100 @@ struct LoginView: View {
     }
 
     func handleLogin() {
-        // Demo: hardcoded credentials (replace with real auth logic as needed)
-        if username == "admin" && password == "password" {
-            // Show authorizing overlay while waiting for notification permission
-            isAuthorizing = true
-            PermissionManager.requestNotificationAuthorization { granted in
-//                DispatchQueue.main.async {
-                    notificationGranted = granted
-                    isAuthorizing = false
-                    if granted {
-                        // Continue login flow
-                        isLoggedIn = true
-                        errorMessage = nil
-                        // Save userId to group UserDefaults
-                        ZapScreenManager.shared.saveUserLoginInfo(userId: username)
-                        // Log extraction from group UserDefaults
-                        if let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") {
-                            // Start polling for deviceToken
-                            pollForDeviceTokenAndRegister(groupDefaults: groupDefaults)
-                            if isRegisteringDevice == false {
-                                let userIdFromDefaults = groupDefaults.string(forKey: "zap_userId") ?? "<nil>"
-                                print("[LoginView] Extracted from group UserDefaults -> userId: \(userIdFromDefaults)")
+        // ... existing code ...
+        isAuthorizing = true
+        errorMessage = nil
+        Task {
+            do {
+                _ = try await SupabaseManager.shared.client.auth.signIn(email: username, password: password)
+                // On success, request notification permission
+                DispatchQueue.main.async {
+                     PermissionManager.requestNotificationAuthorization { granted in
+                        notificationGranted = granted
+                        isAuthorizing = false
+                        if granted {
+                            Task {
+                                isLoggedIn = true
+                                errorMessage = nil
+                                // Save Supabase user ID (UUID) to UserDefaults for later use
+                                if let userId = SupabaseManager.shared.client.auth.currentUser?.id {
+                                    ZapScreenManager.shared.saveUserLoginInfo(userId: userId.uuidString)
+                                }
+                                // --- Save Supabase session tokens ---
+                                do {
+                                    let session = try await SupabaseManager.shared.client.auth.session
+                                    let accessToken = session.accessToken
+                                    let refreshToken = session.refreshToken
+                                    let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
+                                    groupDefaults?.set(accessToken, forKey: "supabase_access_token")
+                                    groupDefaults?.set(refreshToken, forKey: "supabase_refresh_token")
+                                } catch {
+                                    print("[LoginView] Failed to access Supabase session: \(error)")
+                                }
+                                if let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") {
+                                    pollForDeviceTokenAndRegister(groupDefaults: groupDefaults)
+                                    if isRegisteringDevice == false {
+                                        let userIdFromDefaults = groupDefaults.string(forKey: "zap_userId") ?? "<nil>"
+                                        print("[LoginView] Extracted from group UserDefaults -> userId: \(userIdFromDefaults)")
+                                    }
+                                    groupDefaults.set(true, forKey: "isLoggedIn")
+                                } else {
+                                    print("[LoginView] Failed to access group UserDefaults for verification.")
+                                }
+                                PermissionManager.requestLocalNetworkPermission { granted in
+                                    localNetworkGranted = granted
+                                    updatePermissionAlert()
+                                }
                             }
-                            // Set isLoggedIn to true for device registration coordination
-                            groupDefaults.set(true, forKey: "isLoggedIn")
-
                         } else {
-                            print("[LoginView] Failed to access group UserDefaults for verification.")
+                            errorMessage = "Notification permission is required to proceed."
+                            showPermissionAlert = true
                         }
-                        PermissionManager.requestLocalNetworkPermission { granted in
-                            localNetworkGranted = granted
-                            updatePermissionAlert()
-                        }
-                    } else {
-                        // Show authorizing/permission alert (can customize as needed)
-                        errorMessage = "Notification permission is required to proceed."
-                        showPermissionAlert = true
                     }
-//                }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    isAuthorizing = false
+                    errorMessage = "Login failed: \(error.localizedDescription)"
+                }
             }
-        } else {
-            errorMessage = "Invalid username or password."
+        }
+    }
+
+    // Restore Supabase session if tokens exist in UserDefaults
+    private func restoreSessionIfNeeded() {
+        guard !isLoggedIn else { return }
+        let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
+        guard let accessToken = groupDefaults?.string(forKey: "supabase_access_token"),
+              let refreshToken = groupDefaults?.string(forKey: "supabase_refresh_token") else {
+            return
+        }
+        Task {
+            do {
+                try await SupabaseManager.shared.client.auth.setSession(accessToken: accessToken, refreshToken: refreshToken)
+                if SupabaseManager.shared.client.auth.currentUser != nil {
+                    DispatchQueue.main.async {
+                        isLoggedIn = true
+                    }
+                }
+            } catch {
+                print("[LoginView] Failed to restore Supabase session: \(error)")
+            }
+        }
+    }
+
+    func handleLogout() async {
+        isLoggedIn = false
+        let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
+        groupDefaults?.removeObject(forKey: "supabase_access_token")
+        groupDefaults?.removeObject(forKey: "supabase_refresh_token")
+        groupDefaults?.removeObject(forKey: "zap_userId")
+        groupDefaults?.removeObject(forKey: "zap_userRole")
+        groupDefaults?.set(false, forKey: "isLoggedIn")
+        do {
+            try await SupabaseManager.shared.client.auth.signOut()
+        } catch {
+            print("[LoginView] Supabase signOut failed: \(error)")
         }
     }
 
@@ -144,22 +203,46 @@ struct LoginView: View {
             let deviceToken = groupDefaults.string(forKey: "DeviceToken")
             if let token = deviceToken {
                 print("[LoginView] Device token found after login: \(token)")
-                ZapScreenManager.shared.handleDeviceRegistration(deviceToken: token) { success in
-                    print("[LoginView] Device registration after login (polled): \(success) ")
+                Task {
+                    do {
+                        let exists = try await SupabaseManager.shared.deviceExists(deviceToken: token)
+                        if exists {
+                            print("[LoginView] Device already exists in Supabase.")
+                        } else {
+                            let deviceName = UIDevice.current.name
+                            let isParent = true // or false, depending on your logic
+                            let userAccountId = SupabaseManager.shared.client.auth.currentUser?.id.uuidString ?? ""
+                            let device = try await SupabaseManager.shared.addDevice(deviceToken: token, deviceName: deviceName, isParent: isParent, userAccountId: userAccountId)
+                            if device != nil {
+                                print("[LoginView] Device registered in Supabase.")
+                            } else {
+                                print("[LoginView] Failed to register device in Supabase (already exists or error).")
+                            }
+                        }
+                    } catch {
+                        print("[LoginView] Error checking/adding device in Supabase: \(error)")
+                    }
+                    await MainActor.run {
+                        isRegisteringDevice = false
+                        timer.invalidate()
+                        registrationPollTimer = nil
+                    }
                 }
-                isRegisteringDevice = false
-                timer.invalidate()
-                registrationPollTimer = nil
             } else if attempts >= 30 {
                 print("[LoginView] Device token not found after 30s, giving up.")
-                isRegisteringDevice = false
-                timer.invalidate()
-                registrationPollTimer = nil
+                Task {
+                    await MainActor.run {
+                        isRegisteringDevice = false
+                        timer.invalidate()
+                        registrationPollTimer = nil
+                    }
+                }
             } else {
                 print("[LoginView] Waiting for device token... (attempt \(attempts))")
             }
         }
     }
+
 }
 
 struct LoginView_Previews: PreviewProvider {
