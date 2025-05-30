@@ -31,12 +31,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     }
 
     private func checkDeviceRegistrationAndHandleRole() {
+        Task {
+            await SupabaseManager.shared.restoreSessionFromAppGroup()
+        }
         // Get deviceId from group UserDefaults (not deviceToken!)
         guard let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data"),
               let deviceId = groupDefaults.string(forKey: "ZapDeviceId") else {
             print("[AppDelegate] No deviceId found for registration check.")
             return
         }
+        print("DeviceID: \(deviceId)")
         Task {
             do {
                 // Check device registration in Supabase

@@ -91,7 +91,8 @@ struct LoginView: View {
         errorMessage = nil
         Task {
             do {
-                _ = try await SupabaseManager.shared.client.auth.signIn(email: username, password: password)
+                let session = try await SupabaseManager.shared.client.auth.signIn(email: username, password: password)
+                SupabaseManager.shared.updateStoredTokens(from: session)
                 // On success, request notification permission
                 DispatchQueue.main.async {
                      PermissionManager.requestNotificationAuthorization { granted in
@@ -105,14 +106,9 @@ struct LoginView: View {
                                 if let userId = SupabaseManager.shared.client.auth.currentUser?.id {
                                     ZapScreenManager.shared.saveUserLoginInfo(userId: userId.uuidString)
                                 }
-                                // --- Save Supabase session tokens ---
                                 do {
-                                    let session = try await SupabaseManager.shared.client.auth.session
-                                    let accessToken = session.accessToken
-                                    let refreshToken = session.refreshToken
-                                    let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
-                                    groupDefaults?.set(accessToken, forKey: "supabase_access_token")
-                                    groupDefaults?.set(refreshToken, forKey: "supabase_refresh_token")
+                                    let session = try SupabaseManager.shared.client.auth.session
+                                    SupabaseManager.shared.updateStoredTokens(from: session)
                                 } catch {
                                     print("[LoginView] Failed to access Supabase session: \(error)")
                                 }
@@ -156,7 +152,8 @@ struct LoginView: View {
         }
         Task {
             do {
-                try await SupabaseManager.shared.client.auth.setSession(accessToken: accessToken, refreshToken: refreshToken)
+                let session = try await SupabaseManager.shared.client.auth.setSession(accessToken: accessToken, refreshToken: refreshToken)
+                SupabaseManager.shared.updateStoredTokens(from: session)
                 if SupabaseManager.shared.client.auth.currentUser != nil {
                     DispatchQueue.main.async {
                         isLoggedIn = true

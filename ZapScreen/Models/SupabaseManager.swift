@@ -1,6 +1,7 @@
 import Foundation
 import Supabase
 import SwiftUI
+import os.log
 
 // MARK: - Supabase Table Structs
 
@@ -49,11 +50,58 @@ struct SupabaseParentChildInsert: Encodable {
 class SupabaseManager {
     static let shared = SupabaseManager()
     let client: SupabaseClient
+    private let unlockEventURL = "https://droyecamihyazodenamj.supabase.co/functions/v1/unlock-event"
+    private let unlockCommandURL = "https://droyecamihyazodenamj.supabase.co/functions/v1/unlock-command"
 
+    private let logger = Logger(subsystem: "com.ntt.ZapScreen.ZapScreenShieldAction", category: "ShieldAction")
+    
     private init() {
         let url = URL(string: "https://droyecamihyazodenamj.supabase.co")! // Replace with your Supabase project URL
         let key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRyb3llY2FtaWh5YXpvZGVuYW1qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc4MTIwMTYsImV4cCI6MjA2MzM4ODAxNn0.aC8tAcICXcE1pBYOGsSMLzj7XdSmbncAPjqx9cNW0OY" // Replace with your Supabase anon key
         client = SupabaseClient(supabaseURL: url, supabaseKey: key)
+    }
+
+    /// Restore Supabase session from App Group before making authenticated requests
+    func restoreSessionFromAppGroup() async {
+        let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
+        if let accessToken = groupDefaults?.string(forKey: "supabase_access_token"),
+           let refreshToken = groupDefaults?.string(forKey: "supabase_refresh_token") {
+            do {
+                let session = try await client.auth.setSession(accessToken: accessToken, refreshToken: refreshToken)
+                print("AccessToken \(accessToken)")
+                print("RefreshToken \(refreshToken)")
+                updateStoredTokens(from: session)
+            } catch {
+                print("Failed to restore Supabase session: \(error)")
+            }
+        }
+    }
+
+    /// Helper to update tokens in App Group UserDefaults
+    func updateStoredTokens(from session: Session) {
+        let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
+        groupDefaults?.set(session.accessToken, forKey: "supabase_access_token")
+        groupDefaults?.set(session.refreshToken, forKey: "supabase_refresh_token")
+    }
+
+    /// Example: Call this after login or any session refresh
+    func loginAndStoreTokens(email: String, password: String) async throws {
+        let session = try await client.auth.signIn(email: email, password: password)
+        updateStoredTokens(from: session)
+    }
+    
+    /// Call this in your extension before making authenticated requests
+    func loadSessionFromAppGroup() async {
+        let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
+        if let accessToken = groupDefaults?.string(forKey: "supabase_access_token"),
+           let refreshToken = groupDefaults?.string(forKey: "supabase_refresh_token") {
+            do {
+                // If your SDK supports this:
+                try await client.auth.setSession(accessToken: accessToken, refreshToken: refreshToken)
+            } catch {
+                print("Failed to restore Supabase session: \(error)")
+            }
+        }
     }
 
     // Check if a device exists in the 'devices' table by device_token or device_id
@@ -81,6 +129,7 @@ class SupabaseManager {
 
     // Add a new device if device_token and device_id are not found
     func addDevice(deviceToken: String, deviceName: String, isParent: Bool, userAccountId: String) async throws -> SupabaseDevice? {
+        await restoreSessionFromAppGroup()
         guard let deviceId = await UIDevice.current.identifierForVendor?.uuidString else {
             return nil
         }
@@ -118,6 +167,7 @@ class SupabaseManager {
     }
 
     func updateDeviceName(newName: String) async throws -> SupabaseDevice {
+        await restoreSessionFromAppGroup()
         guard let deviceId = await UIDevice.current.identifierForVendor?.uuidString else {
             throw NSError(domain: "SupabaseManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "No deviceId available"])
         }
@@ -139,6 +189,7 @@ class SupabaseManager {
 
     // Update the is_parent status for the current device
     func updateDeviceParentStatus(isParent: Bool) async throws -> SupabaseDevice {
+        await restoreSessionFromAppGroup()
         guard let deviceId = await UIDevice.current.identifierForVendor?.uuidString else {
             throw NSError(domain: "SupabaseManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "No deviceId available"])
         }
@@ -160,6 +211,7 @@ class SupabaseManager {
 
     // Fetch all devices from Supabase
     func fetchAllDevices() async throws -> [SupabaseDevice] {
+        await restoreSessionFromAppGroup()
         guard let userId = client.auth.currentUser?.id else {
             throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found for device query."])
         }
@@ -175,6 +227,7 @@ class SupabaseManager {
 
     // Check and create missing parent-child relationships in Supabase
     func checkDeviceRelationship() async throws -> [(parent: String, child: String)] {
+        await restoreSessionFromAppGroup()
         guard let userId = client.auth.currentUser?.id.uuidString else {
             throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found for relationship operation."])
         }
@@ -219,6 +272,7 @@ class SupabaseManager {
 
     // Delete the current device from Supabase
     func deleteDevice(deviceId: String) async throws -> Bool {
+        await restoreSessionFromAppGroup()
         guard let userId = client.auth.currentUser?.id.uuidString else {
             throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found for delete."])
         }
@@ -231,5 +285,124 @@ class SupabaseManager {
         // If no error is thrown, consider delete successful
         return true
     }
+    
+    func sendUnlockEvent(bundleIdentifier: String) async {
+        // Call Supabase Edge Function for unlock-event
+        let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
+        var accessToken = groupDefaults?.string(forKey: "supabase_access_token")
+        var refreshToken = groupDefaults?.string(forKey: "supabase_refresh_token")
+        
+        logger.info("[SupabaseManager] SendUnlockEvent")
+        // If no access token, try silent refresh
+        if accessToken == nil, let refreshToken = refreshToken {
+            do {
+                let session = try await client.auth.refreshSession(refreshToken: refreshToken)
+                updateStoredTokens(from: session)
+                accessToken = session.accessToken
+            } catch {
+                print("[SupabaseManager] Silent refresh failed: \(error)")
+                return
+            }
+        }
+        guard let finalAccessToken = accessToken else {
+            print("No Supabase access token available.")
+            return
+        }
+        logger.info("[SupabaseManager] SendUnlockEvent with token found \(finalAccessToken)")
 
+        guard let deviceId = UIDevice.current.identifierForVendor?.uuidString else { return }
+        guard let url = URL(string: "https://droyecamihyazodenamj.supabase.co/functions/v1/unlock-event") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(finalAccessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let payload: [String: Any] = [
+            "childDeviceId": deviceId,
+            "bundleIdentifier": bundleIdentifier
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
+        // --- BEGIN VERBOSE LOGGING ---
+        logger.info("[SupabaseManager] Sending Unlock Event request:")
+        logger.info("URL: \(request.url?.absoluteString ?? "<nil>")")
+        logger.info("Method: \(request.httpMethod ?? "<nil>")")
+        logger.info("Headers: \(request.allHTTPHeaderFields ?? [:])")
+        if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
+            logger.info("Body: \(bodyString)")
+        } else {
+            logger.info("Body: <none>")
+        }
+        // --- END VERBOSE LOGGING ---
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                logger.info("Unlock event sent successfully.")
+            } else {
+                let message = String(data: data, encoding: .utf8) ?? "Unknown error"
+                logger.info("Failed to send unlock event: \(message)")
+            }
+        } catch {
+            logger.info("Network error sending unlock event: \(error.localizedDescription)")
+        }
+    }
+    
+    // MARK: - Send Lock Command
+    func sendUnLockCommand(to childDeviceId: String, bundleIdentifier: String, time minutes: Int, completion: @escaping (Result<Void, Error>) -> Void) async {
+        // Call Supabase Edge Function for unlock-command
+        let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
+        var accessToken = groupDefaults?.string(forKey: "supabase_access_token")
+        let refreshToken = groupDefaults?.string(forKey: "supabase_refresh_token")
+        // If no access token, try silent refresh
+        if accessToken == nil, let refreshToken = refreshToken {
+            do {
+                let session = try await client.auth.refreshSession(refreshToken: refreshToken)
+                updateStoredTokens(from: session)
+                accessToken = session.accessToken
+            } catch {
+                completion(.failure(NSError(domain: "", code: 401, userInfo: [NSLocalizedDescriptionKey: "Silent refresh failed: \(error.localizedDescription)"])));
+                return
+            }
+        }
+        guard let finalAccessToken = accessToken else {
+            completion(.failure(NSError(domain: "", code: 401, userInfo: [NSLocalizedDescriptionKey: "No Supabase access token available."])));
+            return
+        }
+        guard let url = URL(string: "https://droyecamihyazodenamj.supabase.co/functions/v1/unlock-command") else {
+            completion(.failure(NSError(domain: "", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid Supabase Edge Function URL."])));
+            return
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(finalAccessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body: [String: Any] = [
+            "childDeviceId": childDeviceId,
+            "bundleIdentifier": bundleIdentifier,
+            "minutes": minutes
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        print("Bundle Identifier: \(bundleIdentifier)")
+        print("Time \(minutes)")
+        // --- BEGIN VERBOSE LOGGING ---
+        print("[ZapScreenManager] Sending request:")
+        print("URL: \(request.url?.absoluteString ?? "<nil>")")
+        print("Method: \(request.httpMethod ?? "<nil>")")
+        print("Headers: \(request.allHTTPHeaderFields ?? [:])")
+        if let body = request.httpBody, let bodyString = String(data: body, encoding: .utf8) {
+            print("Body: \(bodyString)")
+        } else {
+            print("Body: <none>")
+        }
+        // --- END VERBOSE LOGGING ---
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                completion(.success(()))
+            } else {
+                let message = String(data: data, encoding: .utf8) ?? "Unknown error"
+                completion(.failure(NSError(domain: "", code: (response as? HTTPURLResponse)?.statusCode ?? 500, userInfo: [NSLocalizedDescriptionKey: "Failed to send Unlock command: \(message)"])));
+            }
+        } catch {
+            completion(.failure(error))
+        }
+    }
 }

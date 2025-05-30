@@ -17,15 +17,17 @@ class ShieldActionExtension: ShieldActionDelegate {
     
     private let logger = Logger(subsystem: "com.ntt.ZapScreen.ZapScreenShieldAction", category: "ShieldAction")
     var applicationProfile: ApplicationProfile!
-    
+
     override func handle(action: ShieldAction, for application: ApplicationToken, completionHandler: @escaping (ShieldActionResponse) -> Void) {
+        
+        print("ShieldActionExtension: handle called")
+        logger.error("ShieldActionExtension: handle called") 
         switch action {
         case .primaryButtonPressed:
+            print("[ShieldActionExtension]")
+
             logger.info("Primary button pressed for application")
             
-            // Create application profile with saved name if available
-//            createApplicationProfile(for: application, withName: appName)
-            // Send unlock event to server using the mapped app name
             var appName = ""
             let db = DataBase()
             let profiles = db.getApplicationProfiles()
@@ -34,11 +36,15 @@ class ShieldActionExtension: ShieldActionDelegate {
                     appName = profile.value.applicationName
                 }
             }
-            ZapScreenManager.shared.sendUnlockEvent(bundleIdentifier: appName)
-            logger.info("sendUnlockEvent triggered")
-//            startMonitoring()
-//            unlockApp()
-            completionHandler(.close)
+            
+            logger.info("[ShieldActionExtension] Start sendunlockEvent")
+            Task {
+                logger.info("[AppName]:\(appName)")
+                await SupabaseManager.shared.sendUnlockEvent(bundleIdentifier: appName)
+                logger.info("sendUnlockEvent triggered")
+                completionHandler(.defer)
+            }
+            
             
         case .secondaryButtonPressed:
             logger.info("Secondary button pressed for application")

@@ -13,7 +13,11 @@ struct RemoteUnLockView: View {
             Text("Send a unlock command to your child's device. This will unlock the app your child requested.")
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
-            Button(action: sendUnLockCommand) {
+            Button(action: {
+                    Task {
+                        await sendUnLockCommand()
+                    }
+            }) {
                 HStack {
                     if isSending { ProgressView() }
                     Text("UnLock Child's App for 2 mins")
@@ -30,7 +34,7 @@ struct RemoteUnLockView: View {
         .padding()
     }
     
-    private func sendUnLockCommand() {
+    private func sendUnLockCommand() async {
         isSending = true
         sendResult = nil
         // Fetch child device ID and bundleIdentifier as needed
@@ -41,7 +45,7 @@ struct RemoteUnLockView: View {
             isSending = false
             return
         }
-        ZapScreenManager.shared.sendUnLockCommand(to: childDeviceId, bundleIdentifier: bundleIdentifier, time: 2) { result in
+        await SupabaseManager.shared.sendUnLockCommand(to: childDeviceId, bundleIdentifier: bundleIdentifier, time: 2) { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success:
@@ -52,6 +56,7 @@ struct RemoteUnLockView: View {
                 isSending = false
             }
         }
+
     }
 }
 
