@@ -62,22 +62,24 @@ struct ContentView: View {
     func handleLogout() {
         Task {
             do {
-                try await SupabaseManager.shared.client.auth.signOut()
-                DispatchQueue.main.async {
-                    isLoggedIn = false
-                    selectedRole = nil
-                    isAuthorized = false
-                    // Optionally clear group UserDefaults or other user state here
-                    if let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") {
-                        groupDefaults.removeObject(forKey: "zap_userId")
-                        groupDefaults.set(false, forKey: "isLoggedIn")
-                    }
+                // Clear UI state
+                isLoggedIn = false
+                selectedRole = nil
+                isAuthorized = false
+                // Clear all relevant group UserDefaults
+                if let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") {
+                    groupDefaults.removeObject(forKey: "supabase_access_token")
+                    groupDefaults.removeObject(forKey: "supabase_refresh_token")
+                    groupDefaults.removeObject(forKey: "zap_userId")
+                    groupDefaults.removeObject(forKey: "zap_userRole")
+                    groupDefaults.set(false, forKey: "isLoggedIn")
                 }
+                // Supabase sign out
+                try await SupabaseManager.shared.client.auth.signOut()
             } catch {
-                // Optionally show an error message to the user
                 print("Logout failed: \(error.localizedDescription)")
             }
         }
     }
-    
+
 }

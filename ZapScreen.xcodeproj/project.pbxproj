@@ -161,7 +161,6 @@
 				Models/DataBase.swift,
 				Models/ShieldManager.swift,
 				Models/SupabaseManager.swift,
-				Models/ZapScreenManager.swift,
 			);
 			target = 370EA29F2DB7C303001466A3 /* ZapScreenShieldAction */;
 		};
@@ -173,7 +172,6 @@
 				Models/DataBase.swift,
 				Models/ShieldManager.swift,
 				Models/SupabaseManager.swift,
-				Models/ZapScreenManager.swift,
 			);
 			target = 370EA2C42DB7C333001466A3 /* ZapScreenDeviceActivityMonitor */;
 		};
@@ -192,7 +190,6 @@
 				Models/DataBase.swift,
 				Models/ShieldManager.swift,
 				Models/SupabaseManager.swift,
-				Models/ZapScreenManager.swift,
 			);
 			target = 371304B02DB9253D008F1E71 /* ZapScreenShieldConfiguration */;
 		};

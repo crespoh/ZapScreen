@@ -104,7 +104,14 @@ struct LoginView: View {
                                 errorMessage = nil
                                 // Save Supabase user ID (UUID) to UserDefaults for later use
                                 if let userId = SupabaseManager.shared.client.auth.currentUser?.id {
-                                    ZapScreenManager.shared.saveUserLoginInfo(userId: userId.uuidString)
+//                                    ZapScreenManager.shared.saveUserLoginInfo(userId: userId.uuidString)
+                                    guard let userDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") else {
+                                        print("Failed to access group UserDefaults with identifier: group.com.ntt.ZapScreen.data")
+                                        return
+                                    }
+                                    userDefaults.set(userId, forKey: "zap_userId")
+                                    userDefaults.synchronize() // Optional, ensures immediate write
+                                    print("Saved userId \(userId) to group UserDefaults (overwritten if existed)")
                                 }
                                 do {
                                     let session = try SupabaseManager.shared.client.auth.session
@@ -165,20 +172,6 @@ struct LoginView: View {
         }
     }
 
-    func handleLogout() async {
-        isLoggedIn = false
-        let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
-        groupDefaults?.removeObject(forKey: "supabase_access_token")
-        groupDefaults?.removeObject(forKey: "supabase_refresh_token")
-        groupDefaults?.removeObject(forKey: "zap_userId")
-        groupDefaults?.removeObject(forKey: "zap_userRole")
-        groupDefaults?.set(false, forKey: "isLoggedIn")
-        do {
-            try await SupabaseManager.shared.client.auth.signOut()
-        } catch {
-            print("[LoginView] Supabase signOut failed: \(error)")
-        }
-    }
 
     private func updatePermissionAlert() {
         // Only show alert if both permissions have been checked (not nil)
