@@ -22,7 +22,6 @@ struct ShieldCustomView: View {
     @StateObject var model = AppSelectionModel.shared
 
     var body: some View {
-        let saveDisabled = false
         VStack {
             HStack {
                 Button("Cancel") {
@@ -30,10 +29,16 @@ struct ShieldCustomView: View {
                 }
                 Spacer()
                 Button("Save") {
-                    // Instead of saving immediately, show the name prompt
-                    showNamePrompt = true
+                    // Only show the name prompt if the selection is valid (exactly one app, no other types).
+                    // The errorMessage state is updated by the .onChange modifier.
+                    // If errorMessage is nil, it means the selection is valid.
+                    if errorMessage == nil {
+                        showNamePrompt = true
+                    }
+                    // If errorMessage is not nil, the error is already displayed via Text(errorMessage ?? "")
+                    // and this button action effectively does nothing, preventing the sheet from appearing.
                 }
-                .disabled(saveDisabled)
+                .disabled(model.activitySelection.applicationTokens.isEmpty || errorMessage != nil)
             }
             .padding()
 

@@ -109,7 +109,7 @@ struct LoginView: View {
                                         print("Failed to access group UserDefaults with identifier: group.com.ntt.ZapScreen.data")
                                         return
                                     }
-                                    userDefaults.set(userId, forKey: "zap_userId")
+                                    userDefaults.set(userId.uuidString, forKey: "zap_userId")
                                     userDefaults.synchronize() // Optional, ensures immediate write
                                     print("Saved userId \(userId) to group UserDefaults (overwritten if existed)")
                                 }
