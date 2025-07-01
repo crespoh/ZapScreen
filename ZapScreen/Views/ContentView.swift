@@ -25,6 +25,12 @@ struct ContentView: View {
                         Label("Devices", systemImage: "iphone")
                     }
                 
+                DeviceActivityView()
+                    .tabItem {
+                        Label("Activities", systemImage: "book.pages")
+                        
+                    }
+                
                 GroupUserDefaultsView()
                     .tabItem {
                         Label("Debug", systemImage: "ladybug")
