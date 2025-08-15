@@ -54,4 +54,11 @@ class ShieldManager: ObservableObject {
 //        }
     }
     
+    func blockAll() {
+        // Use FamilyActivityCategory enum directly for categories
+        store.shield.applicationCategories = .all(except: []) // Block all categories
+        store.shield.applications = nil // Or include everything
+        // store.shield.restriction = .none // Removed: No such property in ShieldSettings or ManagedSettingsStore
+    }
+    
 }

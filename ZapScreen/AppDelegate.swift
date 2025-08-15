@@ -20,9 +20,28 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         application.registerForRemoteNotifications()
         // Ensure deviceId is stored in group UserDefaults
         storeDeviceIdIfNeeded()
+        storeDeviceInfo()
         // Check device registration on launch
         checkDeviceRegistrationAndHandleRole()
         return true
+    }
+    
+    func application(_ application: UIApplication,
+                     didReceiveRemoteNotification userInfo: [AnyHashable: Any],
+                     fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
+        
+        guard let command = userInfo["command"] as? String else {
+            completionHandler(.noData)
+            return
+        }
+
+        if command == "block_all_apps" {
+            Task {
+                await ShieldManager.shared.blockAll()
+            }
+        }
+
+        completionHandler(.newData)
     }
 
     func applicationWillEnterForeground(_ application: UIApplication) {
@@ -66,6 +85,26 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             groupDefaults.set(deviceId, forKey: "ZapDeviceId")
             print("[AppDelegate] Stored deviceId to group UserDefaults: \(deviceId)")
         }
+    }
+    
+    func storeDeviceInfo() {
+        let deviceInfo = [
+            "name": UIDevice.current.name,
+            "model": UIDevice.current.model,
+            "timestamp": Date().timeIntervalSince1970
+        ] as [String : Any]
+        
+        let data = try! JSONSerialization.data(withJSONObject: deviceInfo)
+        
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: "DeviceRegistry",
+            kSecAttrAccount as String: UIDevice.current.identifierForVendor?.uuidString ?? "unknown",
+            kSecValueData as String: data,
+            kSecAttrSynchronizable as String: kCFBooleanTrue! // Sync via iCloud Keychain
+        ]
+        
+        SecItemAdd(query as CFDictionary, nil)
     }
         
     // Handle successful registration

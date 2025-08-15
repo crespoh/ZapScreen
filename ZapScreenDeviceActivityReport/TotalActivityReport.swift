@@ -59,6 +59,7 @@ struct TotalActivityReport: DeviceActivityReportScene {
                         let appTime = formatter.string(from: app.totalActivityDuration) ?? "No Time Found"
                         appNames.append("Type:\(deviceType), User: \(deviceUser), Name:\(appName),Time:\(appTime)")
 //                        appNames.append("\(appName),Time:\(appTime)")
+                        
 
                     }
                 }
