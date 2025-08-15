@@ -286,7 +286,7 @@ class SupabaseManager {
         return true
     }
     
-    func sendUnlockEvent(bundleIdentifier: String) async {
+    func sendUnlockEvent(bundleIdentifier: String, requestId: String? = nil) async {
         // Call Supabase Edge Function for unlock-event
         let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
         var accessToken = groupDefaults?.string(forKey: "supabase_access_token")
@@ -316,10 +316,17 @@ class SupabaseManager {
         request.httpMethod = "POST"
         request.setValue("Bearer \(finalAccessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let payload: [String: Any] = [
+        
+        // Build request body with optional request_id
+        var payload: [String: Any] = [
             "childDeviceId": deviceId,
             "bundleIdentifier": bundleIdentifier
         ]
+        
+        if let requestId = requestId {
+            payload["request_id"] = requestId
+        }
+        
         request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
         // --- BEGIN VERBOSE LOGGING ---
         logger.info("[SupabaseManager] Sending Unlock Event request:")
@@ -346,7 +353,7 @@ class SupabaseManager {
     }
     
     // MARK: - Send Lock Command
-    func sendUnLockCommand(to childDeviceId: String, bundleIdentifier: String, time minutes: Int, completion: @escaping (Result<Void, Error>) -> Void) async {
+    func sendUnLockCommand(to childDeviceId: String, bundleIdentifier: String, time minutes: Int, requestId: String? = nil, completion: @escaping (Result<Void, Error>) -> Void) async {
         // Call Supabase Edge Function for unlock-command
         let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
         var accessToken = groupDefaults?.string(forKey: "supabase_access_token")
@@ -374,11 +381,18 @@ class SupabaseManager {
         request.httpMethod = "POST"
         request.setValue("Bearer \(finalAccessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let body: [String: Any] = [
+        
+        // Build request body with optional request_id
+        var body: [String: Any] = [
             "childDeviceId": childDeviceId,
             "bundleIdentifier": bundleIdentifier,
             "minutes": minutes
         ]
+        
+        if let requestId = requestId {
+            body["request_id"] = requestId
+        }
+        
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         print("Bundle Identifier: \(bundleIdentifier)")
         print("Time \(minutes)")
@@ -395,11 +409,26 @@ class SupabaseManager {
         // --- END VERBOSE LOGGING ---
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
-            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
-                completion(.success(()))
+            
+            if let httpResponse = response as? HTTPURLResponse {
+                let responseString = String(data: data, encoding: .utf8) ?? ""
+                
+                if httpResponse.statusCode == 200 {
+                    completion(.success(()))
+                } else if httpResponse.statusCode == 503 {
+                    // Retryable error
+                    completion(.failure(NSError(domain: "", code: 503, userInfo: [NSLocalizedDescriptionKey: "Service temporarily unavailable. Please try again."])))
+                } else {
+                    // Parse error response
+                    if let responseData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let error = responseData["error"] as? String {
+                        completion(.failure(NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: error])))
+                    } else {
+                        completion(.failure(NSError(domain: "", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Failed to send Unlock command: \(responseString)"])))
+                    }
+                }
             } else {
-                let message = String(data: data, encoding: .utf8) ?? "Unknown error"
-                completion(.failure(NSError(domain: "", code: (response as? HTTPURLResponse)?.statusCode ?? 500, userInfo: [NSLocalizedDescriptionKey: "Failed to send Unlock command: \(message)"])));
+                completion(.failure(NSError(domain: "", code: 500, userInfo: [NSLocalizedDescriptionKey: "Invalid response from server"])))
             }
         } catch {
             completion(.failure(error))
