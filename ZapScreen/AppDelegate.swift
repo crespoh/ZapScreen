@@ -5,7 +5,6 @@ import DeviceActivity
 import UserNotifications
 import Network
 import SwiftData
-import Foundation
 
 
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
@@ -15,12 +14,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     var applicationProfile: ApplicationProfile!
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Check if database migration is needed
-        if !DataBase().isMigrationCompleted() {
-            print("[AppDelegate] Database migration needed, starting migration...")
-            DataBase().migrateToNewSchema()
-        }
-        
         // Set notification center delegate
         UNUserNotificationCenter.current().delegate = self
         // Register for remote notifications
@@ -214,13 +207,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         let profiles = db.getApplicationProfiles()
         var foundExistingProfile = false
         
-        for profile in profiles.values {
-            if profile.applicationName == bundleIdentifier {
+        for profile in profiles {
+            if profile.value.applicationName == bundleIdentifier {
                 foundExistingProfile = true
-                let applicationToken = profile.applicationToken
+                let applicationToken = profile.value.applicationToken
                 
                 // Update existing profile instead of creating new one
-                self.applicationProfile = profile
+                self.applicationProfile = profile.value
                 startMonitoring(minutes: minutes)
                 break
             }
@@ -230,11 +223,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         if !foundExistingProfile {
             // This should not happen in normal flow, but handle it gracefully
             print("[AppDelegate] Warning: No existing profile found for \(bundleIdentifier)")
-        }
-        
-        // Start unlock session for the app
-        if let profile = self.applicationProfile {
-            startUnlockSession(for: profile.applicationToken, duration: TimeInterval(minutes))
         }
     }
     
@@ -249,30 +237,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
 
     }
     
-    // MARK: - Unlock Session Management (Phase 1.5 Bug Fix)
-    
-    /// Start unlock session for an app with specified duration
-    func startUnlockSession(for application: ApplicationToken, duration: TimeInterval) {
-        print("[AppDelegate] Starting unlock session for app, duration: \(duration) minutes")
-        
-        // Get app name from profile
-        let appName = self.applicationProfile?.applicationName ?? "Unknown App"
-        
-        // Create unlock session in database
-        let database = DataBase()
-        let unlockSession = UnlockSession(
-            applicationToken: application,
-            applicationName: appName,
-            unlockDuration: duration
-        )
-        database.addUnlockSession(unlockSession)
-        
-        // Start DeviceActivity monitoring
-        startMonitoring(minutes: Int(duration))
-        
-        print("[AppDelegate] Unlock session started for: \(appName)")
-    }
-    
     func startMonitoring(minutes: Int) {
         print("Starting device activity monitoring for \(minutes)")
         
@@ -280,17 +244,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         stopMonitoring()
         
         let unlockTime = minutes
-        
-        // Get the current unlock session for this app
-        let database = DataBase()
-        let activeSessions = database.getActiveUnlockSessions()
-        let currentSession = activeSessions.values.first { $0.applicationToken == self.applicationProfile.applicationToken }
-        
-        // Use session ID if available, otherwise fall back to profile ID
-        let activityId = currentSession?.id.uuidString ?? self.applicationProfile.id.uuidString
-        
         let event: [DeviceActivityEvent.Name: DeviceActivityEvent] = [
-            (DeviceActivityEvent.Name(activityId) as DeviceActivityEvent.Name): DeviceActivityEvent(
+            (DeviceActivityEvent.Name(self.applicationProfile.id.uuidString) as DeviceActivityEvent.Name): DeviceActivityEvent(
                 applications: Set<ApplicationToken>([self.applicationProfile.applicationToken]),
                 threshold: DateComponents(minute: unlockTime)
             )
@@ -334,17 +289,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     
     func stopMonitoring() {
         let center = DeviceActivityCenter()
-        
-        // Get the current unlock session for this app
-        let database = DataBase()
-        let activeSessions = database.getActiveUnlockSessions()
-        let currentSession = activeSessions.values.first { $0.applicationToken == self.applicationProfile.applicationToken }
-        
-        // Use session ID if available, otherwise fall back to profile ID
-        let activityId = currentSession?.id.uuidString ?? self.applicationProfile.id.uuidString
-        
-        center.stopMonitoring([DeviceActivityName(activityId)])
-        print("Stopped monitoring for: \(activityId)")
+        center.stopMonitoring([DeviceActivityName(self.applicationProfile.id.uuidString)])
+        print("Stopped monitoring for: \(self.applicationProfile.id.uuidString)")
     }
     
     func stopAllMonitoring() {
@@ -352,10 +298,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // Stop all active monitoring sessions
         center.stopMonitoring()
         print("Stopped all monitoring sessions")
-        
-        // Also end all unlock sessions
-        let shieldManager = ShieldManager.shared
-        shieldManager.endAllUnlockSessions()
     }
     
     

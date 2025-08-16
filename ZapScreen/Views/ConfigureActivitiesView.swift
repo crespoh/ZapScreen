@@ -54,7 +54,6 @@ struct ConfigureActivitiesView: View {
                 AddActivityView()
             }
             .onAppear {
-                print("[ConfigureActivitiesView] View appeared - starting sync...")
                 // Sync ShieldManager with existing data from database
                 syncShieldManagerWithDatabase()
             }
@@ -63,24 +62,28 @@ struct ConfigureActivitiesView: View {
     
     private func removeAppFromShield(_ token: ApplicationToken) {
         print("[ConfigureActivitiesView] Removing app from shield: \(token)")
-        print("[ConfigureActivitiesView] Before removal - Total apps in ShieldManager: \(shieldManager.discouragedSelections.applicationTokens.count)")
         
-        // Use ShieldManager to remove the app completely
-        shieldManager.removeApplicationCompletely(token)
+        // Remove from ShieldManager
+        shieldManager.removeApplicationFromShield(token)
         
-        print("[ConfigureActivitiesView] After removal - Total apps in ShieldManager: \(shieldManager.discouragedSelections.applicationTokens.count)")
+        // Remove from database
+        let profiles = db.getApplicationProfiles()
+        for profile in profiles {
+            if profile.value.applicationToken == token {
+                print("[ConfigureActivitiesView] Removing profile: \(profile.value.applicationName)")
+                db.removeApplicationProfile(profile.value)
+                break
+            }
+        }
         
         // Sync with AppSelectionModel
         model.syncWithShieldManager(shieldManager)
-        
-        print("[ConfigureActivitiesView] App completely removed from shield system")
     }
     
     private func syncShieldManagerWithDatabase() {
-        print("[ConfigureActivitiesView] Starting sync with database...")
-        
         // Load existing application profiles from database
         let profiles = db.getApplicationProfiles()
+        
         print("[ConfigureActivitiesView] Found \(profiles.count) profiles in database")
         
         // Clear current ShieldManager selections
@@ -97,8 +100,6 @@ struct ConfigureActivitiesView: View {
         
         // Sync with AppSelectionModel
         model.syncWithShieldManager(shieldManager)
-        
-        print("[ConfigureActivitiesView] Sync completed. Total apps in ShieldManager: \(shieldManager.discouragedSelections.applicationTokens.count)")
     }
 }
 

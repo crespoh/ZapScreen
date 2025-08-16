@@ -22,25 +22,12 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         super.intervalDidEnd(for: activity)
         
         // Handle the end of the interval.
-        print("[DeviceActivityMonitor] Interval ended for activity: \(activity.rawValue)")
-        
         let database = DataBase()
-        
-        // Look for unlock session by DeviceActivity ID
-        if let session = database.getUnlockSession(activityId: activity.rawValue) {
-            print("[DeviceActivityMonitor] Found unlock session for: \(session.applicationName)")
-            
-            // Mark session as expired
-            database.expireUnlockSession(session.id)
-            
-            // Re-lock the app using ShieldManager
-            let shieldManager = ShieldManager.shared
-            shieldManager.endUnlockSession(for: session.applicationToken)
-            
-            print("[DeviceActivityMonitor] Re-locked app: \(session.applicationName)")
-        } else {
-            print("[DeviceActivityMonitor] No unlock session found for activity: \(activity.rawValue)")
-        }
+        guard let activityId = UUID(uuidString: activity.rawValue) else { return }
+        guard let application = database.getApplicationProfile(id: activityId) else { return }
+        let store = ManagedSettingsStore()
+        store.shield.applications?.insert(application.applicationToken)
+        database.removeApplicationProfile(application)
     }
     
     override func eventDidReachThreshold(_ event: DeviceActivityEvent.Name, activity: DeviceActivityName) {

@@ -31,9 +31,9 @@ class ShieldActionExtension: ShieldActionDelegate {
             var appName = ""
             let db = DataBase()
             let profiles = db.getApplicationProfiles()
-            for profile in profiles.values {
-                if profile.applicationToken == application {
-                    appName = profile.applicationName
+            for profile in profiles {
+                if profile.value.applicationToken == application {
+                    appName = profile.value.applicationName
                 }
             }
             

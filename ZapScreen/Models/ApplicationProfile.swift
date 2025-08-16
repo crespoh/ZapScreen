@@ -9,19 +9,11 @@ import Foundation
 import ManagedSettings
 
 struct ApplicationProfile: Codable, Hashable, Identifiable {
-    let id: UUID
+    let id = UUID()
     let applicationToken: ApplicationToken
     let applicationName: String
     
     init(applicationToken: ApplicationToken, applicationName: String) {
-        self.id = UUID()
-        self.applicationToken = applicationToken
-        self.applicationName = applicationName
-    }
-    
-    // Custom initializer for creating from existing data
-    init(id: UUID, applicationToken: ApplicationToken, applicationName: String) {
-        self.id = id
         self.applicationToken = applicationToken
         self.applicationName = applicationName
     }
