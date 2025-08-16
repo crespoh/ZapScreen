@@ -12,6 +12,7 @@ import ManagedSettings
 import DeviceActivity
 
 class ShieldManager: ObservableObject {
+    @Environment(\.modelContext) var modelContext
     static let shared = ShieldManager()
     
     @Published var discouragedSelections = FamilyActivitySelection()
@@ -19,23 +20,6 @@ class ShieldManager: ObservableObject {
     private let store = ManagedSettingsStore()
     
     private init() {}
-    
-    func addApplicationToShield(_ token: ApplicationToken) {
-        discouragedSelections.applicationTokens.insert(token)
-        print("[ShieldManager] Added application to shield. Total apps: \(discouragedSelections.applicationTokens.count)")
-        shieldActivities()
-    }
-    
-    func removeApplicationFromShield(_ token: ApplicationToken) {
-        discouragedSelections.applicationTokens.remove(token)
-        print("[ShieldManager] Removed application from shield. Total apps: \(discouragedSelections.applicationTokens.count)")
-        shieldActivities()
-    }
-    
-    // Helper method to get current app count
-    var currentAppCount: Int {
-        return discouragedSelections.applicationTokens.count
-    }
     
     func shieldActivities() {
         // Clear to reset previous settings
@@ -47,35 +31,27 @@ class ShieldManager: ObservableObject {
         store.shield.applications = applications.isEmpty ? nil : applications
         store.shield.applicationCategories = categories.isEmpty ? nil : .specific(categories)
         store.shield.webDomainCategories = categories.isEmpty ? nil : .specific(categories)
-        
-        print("[ShieldManager] Applied shield settings for \(applications.count) applications")
-        
-        // Debug: Print each application token
-        for (index, token) in applications.enumerated() {
-            print("[ShieldManager] App \(index + 1): \(token)")
-        }
-    }
-    
-    // Helper method to check if an app is currently shielded
-    func isAppShielded(_ token: ApplicationToken) -> Bool {
-        return discouragedSelections.applicationTokens.contains(token)
     }
     
     func unlockApplication(_ profile: ApplicationProfile) {
         store.shield.applications?.remove(profile.applicationToken)
-        print("[ShieldManager] Unlocked application: \(profile.applicationName)")
     }
     
     func unlockApplication(_ name: String) {
-        print("[ShieldManager] Start UnLocking: \(name)")
+        print("[ShieldManager] Start UnLocking")
         let db = DataBase()
         let profiles = db.getApplicationProfiles()
         for profile in profiles {
             if profile.value.applicationName == name {
                 store.shield.applications?.remove(profile.value.applicationToken)
-                print("[ShieldManager] Unlocked application: \(profile.value.applicationName)")
             }
         }
+//        for appTokenName in appTokenNames {
+//            if appTokenName.name == name {
+//                print("[ShieldManager] Shield Up!")
+//                store.shield.applications?.insert(appTokenName.token)
+//            }
+//        }
     }
     
     func blockAll() {

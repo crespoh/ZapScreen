@@ -8,7 +8,6 @@
 import Foundation
 import FamilyControls
 import Combine
-import ManagedSettings
 
 class AppSelectionModel: ObservableObject {
     @Published var activitySelection = FamilyActivitySelection()
@@ -40,13 +39,5 @@ class AppSelectionModel: ObservableObject {
         guard let decoded = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) else { return nil }
         return decoded
         
-    }
-    
-    // New method to sync with ShieldManager
-    func syncWithShieldManager(_ shieldManager: ShieldManager) {
-        // Update the model's selection to match ShieldManager's current state
-        activitySelection.applicationTokens = shieldManager.discouragedSelections.applicationTokens
-        saveSelection(selection: activitySelection)
-        print("[AppSelectionModel] Synced with ShieldManager: \(activitySelection.applicationTokens.count) apps")
     }
 }
