@@ -201,28 +201,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             print("[AppDelegate] No minutes found in unlock notification")
             return
         }
-        
-        // Check if we're already monitoring this app
         let db = DataBase()
         let profiles = db.getApplicationProfiles()
-        var foundExistingProfile = false
-        
         for profile in profiles {
             if profile.value.applicationName == bundleIdentifier {
-                foundExistingProfile = true
                 let applicationToken = profile.value.applicationToken
-                
-                // Update existing profile instead of creating new one
-                self.applicationProfile = profile.value
+                createApplicationProfile(for: applicationToken, withName: bundleIdentifier)
                 startMonitoring(minutes: minutes)
-                break
             }
-        }
-        
-        // Only create new profile if not found
-        if !foundExistingProfile {
-            // This should not happen in normal flow, but handle it gracefully
-            print("[AppDelegate] Warning: No existing profile found for \(bundleIdentifier)")
         }
     }
     
@@ -239,10 +225,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     
     func startMonitoring(minutes: Int) {
         print("Starting device activity monitoring for \(minutes)")
-        
-        // Stop any existing monitoring for this app first
-        stopMonitoring()
-        
         let unlockTime = minutes
         let event: [DeviceActivityEvent.Name: DeviceActivityEvent] = [
             (DeviceActivityEvent.Name(self.applicationProfile.id.uuidString) as DeviceActivityEvent.Name): DeviceActivityEvent(
@@ -268,53 +250,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         } catch {
             print("Error monitoring schedule: \(error.localizedDescription)")
             print("Error monitoring schedule: \(error)")
-            
-            // If it's an excessive activities error, try to stop all monitoring and retry
-            if error.localizedDescription.contains("excessiveActivities") {
-                print("Attempting to stop all monitoring and retry...")
-                stopAllMonitoring()
-                
-                // Wait a moment and retry
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    do {
-                        try center.startMonitoring(DeviceActivityName(self.applicationProfile.id.uuidString), during: schedule, events: event)
-                        print("Successfully started monitoring after cleanup")
-                    } catch {
-                        print("Failed to start monitoring after cleanup: \(error.localizedDescription)")
-                    }
-                }
-            }
         }
-    }
-    
-    func stopMonitoring() {
-        let center = DeviceActivityCenter()
-        center.stopMonitoring([DeviceActivityName(self.applicationProfile.id.uuidString)])
-        print("Stopped monitoring for: \(self.applicationProfile.id.uuidString)")
-    }
-    
-    func stopAllMonitoring() {
-        let center = DeviceActivityCenter()
-        // Stop all active monitoring sessions
-        center.stopMonitoring()
-        print("Stopped all monitoring sessions")
     }
     
     
     // MARK: UISceneSession Lifecycle
     func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession, options: UIScene.ConnectionOptions) -> UISceneConfiguration {
         return UISceneConfiguration(name: "Default Configuration", sessionRole: connectingSceneSession.role)
-    }
-    
-    // MARK: App Lifecycle
-    func applicationWillTerminate(_ application: UIApplication) {
-        // Clean up monitoring when app terminates
-        stopAllMonitoring()
-    }
-    
-    func applicationDidEnterBackground(_ application: UIApplication) {
-        // Optionally clean up monitoring when app goes to background
-        // Uncomment if you want to stop monitoring when app is backgrounded
-        // stopAllMonitoring()
     }
 } 

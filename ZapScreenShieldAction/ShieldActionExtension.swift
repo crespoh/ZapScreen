@@ -81,10 +81,6 @@ class ShieldActionExtension: ShieldActionDelegate {
     // Start a device activity for this particular application
     func startMonitoring() {
         logger.info("Starting device activity monitoring")
-        
-        // Stop any existing monitoring for this app first
-        stopMonitoring()
-        
         let unlockTime = 2
         let event: [DeviceActivityEvent.Name: DeviceActivityEvent] = [
             (DeviceActivityEvent.Name(self.applicationProfile.id.uuidString) as DeviceActivityEvent.Name): DeviceActivityEvent(
@@ -110,36 +106,7 @@ class ShieldActionExtension: ShieldActionDelegate {
         } catch {
             logger.error("Error monitoring schedule: \(error.localizedDescription)")
             print("Error monitoring schedule: \(error)")
-            
-            // If it's an excessive activities error, try to stop all monitoring and retry
-            if error.localizedDescription.contains("excessiveActivities") {
-                logger.info("Attempting to stop all monitoring and retry...")
-                stopAllMonitoring()
-                
-                // Wait a moment and retry
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    do {
-                        try center.startMonitoring(DeviceActivityName(self.applicationProfile.id.uuidString), during: schedule, events: event)
-                        self.logger.info("Successfully started monitoring after cleanup")
-                    } catch {
-                        self.logger.error("Failed to start monitoring after cleanup: \(error.localizedDescription)")
-                    }
-                }
-            }
         }
-    }
-    
-    func stopMonitoring() {
-        let center = DeviceActivityCenter()
-        center.stopMonitoring([DeviceActivityName(self.applicationProfile.id.uuidString)])
-        logger.info("Stopped monitoring for: \(self.applicationProfile.id.uuidString)")
-    }
-    
-    func stopAllMonitoring() {
-        let center = DeviceActivityCenter()
-        // Stop all active monitoring sessions
-        center.stopMonitoring()
-        logger.info("Stopped all monitoring sessions")
     }
     
     // remove the shield of this application
