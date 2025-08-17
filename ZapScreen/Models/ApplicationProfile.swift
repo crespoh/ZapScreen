@@ -9,7 +9,7 @@ import Foundation
 import ManagedSettings
 
 struct ApplicationProfile: Codable, Hashable, Identifiable {
-    let id = UUID()
+    var id = UUID()
     let applicationToken: ApplicationToken
     let applicationName: String
     

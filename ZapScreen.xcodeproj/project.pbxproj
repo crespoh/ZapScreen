@@ -172,6 +172,7 @@
 				Models/DataBase.swift,
 				Models/ShieldManager.swift,
 				Models/SupabaseManager.swift,
+				Models/UnshieldedApplication.swift,
 			);
 			target = 370EA29F2DB7C303001466A3 /* ZapScreenShieldAction */;
 		};
@@ -183,6 +184,7 @@
 				Models/DataBase.swift,
 				Models/ShieldManager.swift,
 				Models/SupabaseManager.swift,
+				Models/UnshieldedApplication.swift,
 			);
 			target = 370EA2C42DB7C333001466A3 /* ZapScreenDeviceActivityMonitor */;
 		};
@@ -201,6 +203,7 @@
 				Models/DataBase.swift,
 				Models/ShieldManager.swift,
 				Models/SupabaseManager.swift,
+				Models/UnshieldedApplication.swift,
 			);
 			target = 371304B02DB9253D008F1E71 /* ZapScreenShieldConfiguration */;
 		};
@@ -208,6 +211,13 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+			);
+			target = 37CDDFB02E1377FE00F1C2D5 /* ZapScreenDeviceActivityReport */;
+		};
+		37E189942E5167CF00692EF6 /* Exceptions for "ZapScreen" folder in "ZapScreenDeviceActivityReport" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Models/UnshieldedApplication.swift,
 			);
 			target = 37CDDFB02E1377FE00F1C2D5 /* ZapScreenDeviceActivityReport */;
 		};
@@ -228,6 +238,7 @@
 				370EA2D62DB7C698001466A3 /* Exceptions for "ZapScreen" folder in "ZapScreenShieldAction" target */,
 				371304C12DB92A6D008F1E71 /* Exceptions for "ZapScreen" folder in "ZapScreenShieldConfiguration" target */,
 				370EA2D82DB7C698001466A3 /* Exceptions for "ZapScreen" folder in "ZapScreenDeviceActivityMonitor" target */,
+				37E189942E5167CF00692EF6 /* Exceptions for "ZapScreen" folder in "ZapScreenDeviceActivityReport" target */,
 			);
 			path = ZapScreen;
 			sourceTree = "<group>";

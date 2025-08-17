@@ -195,19 +195,25 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             return
         }
         print("[AppDelegate] Locking app with bundleIdentifier: \(bundleIdentifier)")
-        let shieldManager = ShieldManager.shared
-        shieldManager.unlockApplication(bundleIdentifier)
+        
         guard let minutes = content.userInfo["minutes"] as? Int else {
             print("[AppDelegate] No minutes found in unlock notification")
             return
         }
+        
         let db = DataBase()
-        let profiles = db.getApplicationProfiles()
+        let profiles = db.getShieldedApplications()
         for profile in profiles {
             if profile.value.applicationName == bundleIdentifier {
                 let applicationToken = profile.value.applicationToken
-                createApplicationProfile(for: applicationToken, withName: bundleIdentifier)
-                startMonitoring(minutes: minutes)
+                let applicationProfile = ApplicationProfile(
+                    applicationToken: applicationToken,
+                    applicationName: bundleIdentifier
+                )
+                
+                // Use ShieldManager to temporarily unlock the app
+                ShieldManager.shared.temporarilyUnlockApplication(applicationProfile, for: minutes)
+                return
             }
         }
     }
@@ -218,9 +224,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
             applicationToken: application,
             applicationName: name ?? "App \(application.hashValue)" // Use provided name or generate one
         )
-        let dataBase = DataBase()
-        dataBase.addApplicationProfile(self.applicationProfile)
-
+        
+        // Use ShieldManager to add to shield
+        ShieldManager.shared.addApplicationToShield(self.applicationProfile)
     }
     
     func startMonitoring(minutes: Int) {

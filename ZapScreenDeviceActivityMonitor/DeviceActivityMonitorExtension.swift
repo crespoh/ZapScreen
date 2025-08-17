@@ -24,16 +24,43 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         // Handle the end of the interval.
         let database = DataBase()
         guard let activityId = UUID(uuidString: activity.rawValue) else { return }
-        guard let application = database.getApplicationProfile(id: activityId) else { return }
-        let store = ManagedSettingsStore()
-        store.shield.applications?.insert(application.applicationToken)
-        database.removeApplicationProfile(application)
+        
+        // Check if this is an unshielded application that has expired
+        if let unshieldedApp = database.getUnshieldedApplication(id: activityId) {
+            // Get the ApplicationToken from the referenced shielded app
+            let applicationToken = unshieldedApp.shieldedAppToken
+            // Reapply shield to expired app
+            let store = ManagedSettingsStore()
+            store.shield.applications?.insert(applicationToken)
+            
+            // Remove from unshielded collection
+            database.removeUnshieldedApplication(unshieldedApp)
+            
+            print("[DeviceActivityMonitor] Reapplied shield to expired app: \(unshieldedApp.applicationName)")
+        }
     }
     
     override func eventDidReachThreshold(_ event: DeviceActivityEvent.Name, activity: DeviceActivityName) {
         super.eventDidReachThreshold(event, activity: activity)
         
         // Handle the event reaching its threshold.
+        // This is called when the time limit is reached
+        let database = DataBase()
+        guard let activityId = UUID(uuidString: activity.rawValue) else { return }
+        
+        // Check if this is an unshielded application that has reached its threshold
+        if let unshieldedApp = database.getUnshieldedApplication(id: activityId) {
+            // Get the ApplicationToken from the referenced shielded app
+            let applicationToken = unshieldedApp.shieldedAppToken
+            // Reapply shield to app that has reached its time limit
+            let store = ManagedSettingsStore()
+            store.shield.applications?.insert(applicationToken)
+            
+            // Remove from unshielded collection
+            database.removeUnshieldedApplication(unshieldedApp)
+            
+            print("[DeviceActivityMonitor] Reapplied shield to app that reached time limit: \(unshieldedApp.applicationName)")
+        }
     }
     
     override func intervalWillStartWarning(for activity: DeviceActivityName) {
@@ -52,5 +79,13 @@ class DeviceActivityMonitorExtension: DeviceActivityMonitor {
         super.eventWillReachThresholdWarning(event, activity: activity)
         
         // Handle the warning before the event reaches its threshold.
+        // This can be used to show a warning that the app will be re-shielded soon
+        let database = DataBase()
+        guard let activityId = UUID(uuidString: activity.rawValue) else { return }
+        
+        if let unshieldedApp = database.getUnshieldedApplication(id: activityId) {
+            // Show warning that app will be re-shielded soon
+            print("[DeviceActivityMonitor] Warning: App \(unshieldedApp.applicationName) will be re-shielded in 1 minute")
+        }
     }
 }

@@ -118,8 +118,9 @@ struct ShieldCustomView: View {
                         let token = model.activitySelection.applicationTokens.first
                         let app = model.activitySelection.applications.first
                         let applicationProfile = ApplicationProfile(applicationToken: token!, applicationName: enteredAppName)
-                        let dataBase = DataBase()
-                        dataBase.addApplicationProfile(applicationProfile)
+                        
+                        // Use the new ShieldManager method to add app to shield
+                        shieldManager.addApplicationToShield(applicationProfile)
                         
                         print("[ShieldCustomView] Save App Token Successfully")
                         showNamePrompt = false

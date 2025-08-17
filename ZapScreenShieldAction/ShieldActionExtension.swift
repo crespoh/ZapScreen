@@ -30,7 +30,7 @@ class ShieldActionExtension: ShieldActionDelegate {
             
             var appName = ""
             let db = DataBase()
-            let profiles = db.getApplicationProfiles()
+            let profiles = db.getShieldedApplications()
             for profile in profiles {
                 if profile.value.applicationToken == application {
                     appName = profile.value.applicationName
@@ -79,41 +79,41 @@ class ShieldActionExtension: ShieldActionDelegate {
 //    }
         
     // Start a device activity for this particular application
-    func startMonitoring() {
-        logger.info("Starting device activity monitoring")
-        let unlockTime = 2
-        let event: [DeviceActivityEvent.Name: DeviceActivityEvent] = [
-            (DeviceActivityEvent.Name(self.applicationProfile.id.uuidString) as DeviceActivityEvent.Name): DeviceActivityEvent(
-                applications: Set<ApplicationToken>([self.applicationProfile.applicationToken]),
-                threshold: DateComponents(minute: unlockTime)
-            )
-        ]
-        
-        let intervalEnd = Calendar.current.dateComponents(
-            [.hour, .minute, .second],
-            from: Calendar.current.date(byAdding: .minute, value: unlockTime, to: Date.now) ?? Date.now
-        )
-        let schedule = DeviceActivitySchedule(
-            intervalStart: DateComponents(hour: 0, minute: 0),
-            intervalEnd: intervalEnd,
-            repeats: false
-        )
-         
-        let center = DeviceActivityCenter()
-        do {
-            try center.startMonitoring(DeviceActivityName(self.applicationProfile.id.uuidString), during: schedule, events: event)
-            logger.info("Successfully started monitoring")
-        } catch {
-            logger.error("Error monitoring schedule: \(error.localizedDescription)")
-            print("Error monitoring schedule: \(error)")
-        }
-    }
+//    func startMonitoring() {
+//        logger.info("Starting device activity monitoring")
+//        let unlockTime = 2
+//        let event: [DeviceActivityEvent.Name: DeviceActivityEvent] = [
+//            (DeviceActivityEvent.Name(self.applicationProfile.id.uuidString) as DeviceActivityEvent.Name): DeviceActivityEvent(
+//                applications: Set<ApplicationToken>([self.applicationProfile.applicationToken]),
+//                threshold: DateComponents(minute: unlockTime)
+//            )
+//        ]
+//        
+//        let intervalEnd = Calendar.current.dateComponents(
+//            [.hour, .minute, .second],
+//            from: Calendar.current.date(byAdding: .minute, value: unlockTime, to: Date.now) ?? Date.now
+//        )
+//        let schedule = DeviceActivitySchedule(
+//            intervalStart: DateComponents(hour: 0, minute: 0),
+//            intervalEnd: intervalEnd,
+//            repeats: false
+//        )
+//         
+//        let center = DeviceActivityCenter()
+//        do {
+//            try center.startMonitoring(DeviceActivityName(self.applicationProfile.id.uuidString), during: schedule, events: event)
+//            logger.info("Successfully started monitoring")
+//        } catch {
+//            logger.error("Error monitoring schedule: \(error.localizedDescription)")
+//            print("Error monitoring schedule: \(error)")
+//        }
+//    }
     
     // remove the shield of this application
-    func unlockApp() {
-        logger.info("Unlocking application")
-        let store = ManagedSettingsStore()
-        store.shield.applications?.remove(self.applicationProfile.applicationToken)
-        logger.info("Application unlocked")
-    }
+//    func unlockApp() {
+//        logger.info("Unlocking application")
+//        let store = ManagedSettingsStore()
+//        store.shield.applications?.remove(self.applicationProfile.applicationToken)
+//        logger.info("Application unlocked")
+//    }
 }
