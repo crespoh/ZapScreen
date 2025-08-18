@@ -19,7 +19,8 @@ class AppStatusViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     
     init() {
-        loadAppStatus()
+        // Subscribe to ShieldManager's published properties
+        setupBindings()
         startAutoRefresh()
     }
     
@@ -27,40 +28,46 @@ class AppStatusViewModel: ObservableObject {
         stopAutoRefresh()
     }
     
+    // MARK: - Data Binding
+    
+    private func setupBindings() {
+        // Bind to ShieldManager's published properties
+        shieldManager.$shieldedApplications
+            .assign(to: \.shieldedApplications, on: self)
+            .store(in: &cancellables)
+        
+        shieldManager.$unshieldedApplications
+            .assign(to: \.unshieldedApplications, on: self)
+            .store(in: &cancellables)
+    }
+    
     // MARK: - Data Loading
     
     func loadAppStatus() {
-        isLoading = true
-        
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            
-            self.shieldedApplications = self.shieldManager.getShieldedApplications()
-            self.unshieldedApplications = self.shieldManager.getUnshieldedApplications()
-            self.isLoading = false
-        }
+        // Data is now automatically updated via bindings
+        // Just trigger a refresh in ShieldManager
+        shieldManager.refreshData()
     }
     
     func refreshAppStatus() {
         shieldManager.cleanupExpiredUnshieldedApps()
-        loadAppStatus()
     }
     
     // MARK: - App Management
     
     func temporarilyUnlockApp(_ app: ApplicationProfile, for durationMinutes: Int) {
         shieldManager.temporarilyUnlockApplication(app, for: durationMinutes)
-        loadAppStatus()
+        // No need to call loadAppStatus() - ShieldManager will update automatically
     }
     
     func reapplyShieldToApp(_ app: UnshieldedApplication) {
         shieldManager.reapplyShieldToExpiredApp(app)
-        loadAppStatus()
+        // No need to call loadAppStatus() - ShieldManager will update automatically
     }
     
     func removeAppFromShield(_ app: ApplicationProfile) {
         shieldManager.removeApplicationFromShield(app)
-        loadAppStatus()
+        // No need to call loadAppStatus() - ShieldManager will update automatically
     }
     
     // MARK: - Auto Refresh
