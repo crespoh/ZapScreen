@@ -19,7 +19,6 @@ struct ShieldCustomView: View {
     @State private var errorMessage: String? = nil
     @State private var showNamePrompt = false
     @State private var enteredAppName: String = ""
-    @StateObject var model = AppSelectionModel.shared
 
     var body: some View {
         VStack {
@@ -38,11 +37,11 @@ struct ShieldCustomView: View {
                     // If errorMessage is not nil, the error is already displayed via Text(errorMessage ?? "")
                     // and this button action effectively does nothing, preventing the sheet from appearing.
                 }
-                .disabled(model.activitySelection.applicationTokens.isEmpty || errorMessage != nil)
+                .disabled(selection.applicationTokens.isEmpty || errorMessage != nil)
             }
             .padding()
 
-            FamilyActivityPicker(selection: $model.activitySelection)
+            FamilyActivityPicker(selection: $selection)
             
             Text(errorMessage ?? "")
             Spacer()
@@ -50,7 +49,7 @@ struct ShieldCustomView: View {
         .navigationBarBackButtonHidden(true)
         .onAppear() {
         }
-        .onChange(of: model.activitySelection) { newSelection in
+        .onChange(of: selection) { newSelection in
             
             let apps = newSelection.applicationTokens
             let cats = newSelection.categoryTokens
@@ -115,21 +114,23 @@ struct ShieldCustomView: View {
                     Spacer()
                     Button("Save") {
                         
-                        let token = model.activitySelection.applicationTokens.first
-                        let app = model.activitySelection.applications.first
+                        let token = selection.applicationTokens.first
+                        let app = selection.applications.first
                         let applicationProfile = ApplicationProfile(applicationToken: token!, applicationName: enteredAppName)
                         
                         // Use the new ShieldManager method to add app to shield
                         shieldManager.addApplicationToShield(applicationProfile)
                         
+                        // Apply shield immediately
+                        shieldManager.shieldActivities()
+                        
                         print("[ShieldCustomView] Save App Token Successfully")
                         showNamePrompt = false
                         enteredAppName = ""
-                        // Now do the original save logic
-                        shieldManager.discouragedSelections.applicationTokens = model.activitySelection.applicationTokens
-                        shieldManager.discouragedSelections.categoryTokens = model.activitySelection.categoryTokens
-                        shieldManager.discouragedSelections.webDomainTokens = model.activitySelection.webDomainTokens
-                        shieldManager.shieldActivities()
+                        
+                        // Clear the picker selection for next use
+                        selection = FamilyActivitySelection()
+                        
                         dismiss()
                     }
                     .disabled(enteredAppName.isEmpty)
