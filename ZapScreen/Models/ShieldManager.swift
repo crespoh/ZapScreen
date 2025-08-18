@@ -178,6 +178,12 @@ class ShieldManager: ObservableObject {
         return Array(database.getUnshieldedApplications().values)
     }
     
+    func isApplicationAlreadyShielded(_ application: ApplicationProfile) -> Bool {
+        return shieldedApplications.contains { shieldedApp in
+            shieldedApp.applicationToken.hashValue == application.applicationToken.hashValue
+        }
+    }
+    
     func cleanupExpiredUnshieldedApps() {
         database.cleanupExpiredUnshieldedApps()
         // Refresh data to trigger UI update
