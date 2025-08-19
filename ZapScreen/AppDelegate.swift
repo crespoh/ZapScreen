@@ -19,8 +19,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         // Register for remote notifications
         application.registerForRemoteNotifications()
         // Ensure deviceId is stored in group UserDefaults
-        storeDeviceIdIfNeeded()
-        storeDeviceInfo()
+        Task {
+            await storeDeviceIdIfNeeded()
+            await storeDeviceInfo()
+        }
         // Check device registration on launch
         checkDeviceRegistrationAndHandleRole()
         return true
@@ -78,18 +80,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     }
 
     // Store deviceId in group UserDefaults if not already present
-    private func storeDeviceIdIfNeeded() {
+    private func storeDeviceIdIfNeeded() async {
         guard let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") else { return }
         if groupDefaults.string(forKey: "ZapDeviceId") == nil,
-           let deviceId = UIDevice.current.identifierForVendor?.uuidString {
+           let deviceId = await UIDevice.current.identifierForVendor?.uuidString {
             groupDefaults.set(deviceId, forKey: "ZapDeviceId")
             print("[AppDelegate] Stored deviceId to group UserDefaults: \(deviceId)")
         }
     }
     
-    func storeDeviceInfo() {
+    func storeDeviceInfo() async {
         let deviceInfo = [
-            "name": UIDevice.current.name,
+            "name": await UIDevice.current.name,
             "model": UIDevice.current.model,
             "timestamp": Date().timeIntervalSince1970
         ] as [String : Any]
@@ -99,7 +101,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: "DeviceRegistry",
-            kSecAttrAccount as String: UIDevice.current.identifierForVendor?.uuidString ?? "unknown",
+            kSecAttrAccount as String: await UIDevice.current.identifierForVendor?.uuidString ?? "unknown",
             kSecValueData as String: data,
             kSecAttrSynchronizable as String: kCFBooleanTrue! // Sync via iCloud Keychain
         ]
