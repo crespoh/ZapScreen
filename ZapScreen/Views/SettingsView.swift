@@ -42,6 +42,9 @@ struct SettingsView: View {
                         
                         NavigationLink("Group UserDefaults", destination: GroupUserDefaultsView())
                             .foregroundColor(.blue)
+                        
+                        NavigationLink("Device Activity Report", destination: DeviceActivityView())
+                            .foregroundColor(.blue)
                     }
                     
                     Section("Debug Information") {

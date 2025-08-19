@@ -26,10 +26,9 @@ struct ContentView: View {
                         Label("Devices", systemImage: "iphone")
                     }
                 
-                DeviceActivityView()
+                UsageStatisticsView()
                     .tabItem {
-                        Label("Activities", systemImage: "book.pages")
-                        
+                        Label("Statistics", systemImage: "chart.bar")
                     }
                 
                 // Debug tabs - only shown when debug mode is enabled
