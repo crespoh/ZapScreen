@@ -20,11 +20,6 @@ struct ShieldCustomView: View {
     @State private var showNamePrompt = false
     @State private var enteredAppName: String = ""
     @State private var selectedAppIcon: UIImage? = nil
-    
-    // Function to dismiss keyboard
-    private func dismissKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-    }
 
     var body: some View {
         VStack {
@@ -68,21 +63,7 @@ struct ShieldCustomView: View {
             } else if apps.count == 0 {
                 errorMessage = "Please select one app."
             } else {
-                // Check if the selected app is already shielded
-                if let selectedToken = apps.first {
-                    // Check if this ApplicationToken is already in the shielded list
-                    let isAlreadyShielded = shieldManager.shieldedApplications.contains { shieldedApp in
-                        shieldedApp.applicationToken.hashValue == selectedToken.hashValue
-                    }
-                    
-                    if isAlreadyShielded {
-                        errorMessage = "This app is already shielded."
-                    } else {
-                        errorMessage = nil
-                    }
-                } else {
-                    errorMessage = nil
-                }
+                errorMessage = nil
             }
         
         }
@@ -152,16 +133,15 @@ struct ShieldCustomView: View {
                         
                         if !filteredApps.isEmpty {
                             VStack(alignment: .leading, spacing: 8) {
-//                                Text("Suggestions")
-//                                    .font(.headline)
-//                                    .foregroundColor(.primary)
+                                Text("Suggestions")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
                                 
                                 LazyVStack(spacing: 8) {
                                     ForEach(filteredApps.prefix(8), id: \.id) { app in
                                         Button(action: {
                                             enteredAppName = app.app_name
                                             selectedAppIcon = app.image
-                                            dismissKeyboard() // Dismiss keyboard
                                         }) {
                                             HStack {
                                                 if let image = app.image {
@@ -198,6 +178,40 @@ struct ShieldCustomView: View {
                             }
                             .padding(.horizontal)
                         }
+                    } else if enteredAppName.isEmpty {
+                        // Show common app suggestions when field is empty
+//                        VStack(alignment: .leading, spacing: 8) {
+//                            Text("Popular Apps")
+//                                .font(.headline)
+//                                .foregroundColor(.primary)
+//                            
+//                            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 8) {
+//                                ForEach(["Instagram", "TikTok", "YouTube", "Facebook", "Twitter", "Snapchat", "WhatsApp", "Discord"], id: \.self) { appName in
+//                                    Button(action: {
+//                                        enteredAppName = appName
+//                                        // Try to find icon for this app
+//                                        if let app = appIconStore.apps.first(where: { $0.app_name == appName }) {
+//                                            selectedAppIcon = app.image
+//                                        }
+//                                    }) {
+//                                        HStack {
+//                                            Text(appName)
+//                                                .font(.caption)
+//                                                .foregroundColor(.primary)
+//                                            Spacer()
+//                                        }
+//                                        .padding(.vertical, 8)
+//                                        .padding(.horizontal, 12)
+//                                        .background(
+//                                            RoundedRectangle(cornerRadius: 8)
+//                                                .fill(Color.gray.opacity(0.1))
+//                                        )
+//                                    }
+//                                    .buttonStyle(PlainButtonStyle())
+//                                }
+//                            }
+//                        }
+//                        .padding(.horizontal)
                     }
                     
                     // Visual confirmation of selected app
@@ -265,7 +279,7 @@ struct ShieldCustomView: View {
                             dismiss()
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(enteredAppName.isEmpty || selectedAppIcon == nil)
+                        .disabled(enteredAppName.isEmpty)
                     }
                     .padding()
                 }
