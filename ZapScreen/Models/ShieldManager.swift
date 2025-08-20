@@ -15,10 +15,22 @@ class ShieldManager: ObservableObject {
     @Environment(\.modelContext) var modelContext
     static let shared = ShieldManager()
     
+    @Published var shieldedApplications: [ApplicationProfile] = []
+    @Published var unshieldedApplications: [UnshieldedApplication] = []
+    
     private let store = ManagedSettingsStore()
     private let database = DataBase()
     
-    private init() {}
+    private init() {
+        refreshData()
+    }
+    
+    // MARK: - Data Refresh
+    
+    func refreshData() {
+        shieldedApplications = getShieldedApplications()
+        unshieldedApplications = getUnshieldedApplications()
+    }
     
     func shieldActivities() {
         // Get all shielded apps from database
@@ -44,12 +56,16 @@ class ShieldManager: ObservableObject {
         database.addShieldedApplication(application)
         // Apply shield immediately
         store.shield.applications?.insert(application.applicationToken)
+        // Refresh data to trigger UI update
+        refreshData()
     }
     
     func removeApplicationFromShield(_ application: ApplicationProfile) {
         database.removeShieldedApplication(application)
         // Remove shield immediately
         store.shield.applications?.remove(application.applicationToken)
+        // Refresh data to trigger UI update
+        refreshData()
     }
     
     // MARK: - Unshield Management
@@ -70,6 +86,9 @@ class ShieldManager: ObservableObject {
         
         // Start monitoring for expiry
         startUnshieldMonitoring(for: unshieldedApp)
+        
+        // Refresh data to trigger UI update
+        refreshData()
     }
     
     func reapplyShieldToExpiredApp(_ unshieldedApp: UnshieldedApplication) {
@@ -84,6 +103,9 @@ class ShieldManager: ObservableObject {
         
         // Re-add to shielded collection
         addApplicationToShield(originalAppProfile)
+        
+        // Refresh data to trigger UI update
+        refreshData()
     }
     
     // MARK: - Legacy Support
@@ -158,6 +180,8 @@ class ShieldManager: ObservableObject {
     
     func cleanupExpiredUnshieldedApps() {
         database.cleanupExpiredUnshieldedApps()
+        // Refresh data to trigger UI update
+        refreshData()
     }
     
     func blockAll() {

@@ -40,7 +40,7 @@ struct ConfigureActivitiesView: View {
                             Text("Shielded Apps")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
-                            Text("\(shieldManager.getShieldedApplications().count)")
+                            Text("\(shieldManager.shieldedApplications.count)")
                                 .font(.title2)
                                 .fontWeight(.bold)
                                 .foregroundColor(.red)
@@ -52,7 +52,7 @@ struct ConfigureActivitiesView: View {
                             Text("Unshielded Apps")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
-                            Text("\(shieldManager.getUnshieldedApplications().count)")
+                            Text("\(shieldManager.unshieldedApplications.count)")
                                 .font(.title2)
                                 .fontWeight(.bold)
                                 .foregroundColor(.green)
@@ -63,13 +63,12 @@ struct ConfigureActivitiesView: View {
                 
                 // Shielded Applications Section
                 Section(header: Text("Shielded Applications")) {
-                    let shieldedApps = shieldManager.getShieldedApplications()
-                    if shieldedApps.isEmpty {
+                    if shieldManager.shieldedApplications.isEmpty {
                         Text("No apps are currently shielded")
                             .foregroundColor(.secondary)
                             .italic()
                     } else {
-                        ForEach(Array(shieldedApps), id: \.id) { app in
+                        ForEach(Array(shieldManager.shieldedApplications), id: \.id) { app in
                             HStack {
                                 VStack(alignment: .leading) {
                                     Text(app.applicationName)
@@ -92,13 +91,12 @@ struct ConfigureActivitiesView: View {
                 
                 // Unshielded Applications Section
                 Section(header: Text("Temporarily Unshielded")) {
-                    let unshieldedApps = shieldManager.getUnshieldedApplications()
-                    if unshieldedApps.isEmpty {
+                    if shieldManager.unshieldedApplications.isEmpty {
                         Text("No apps are currently unshielded")
                             .foregroundColor(.secondary)
                             .italic()
                     } else {
-                        ForEach(Array(unshieldedApps), id: \.id) { app in
+                        ForEach(Array(shieldManager.unshieldedApplications), id: \.id) { app in
                             HStack {
                                 VStack(alignment: .leading) {
                                     Text(app.applicationName)
@@ -130,6 +128,10 @@ struct ConfigureActivitiesView: View {
                 }
             }
             .navigationTitle("Shield")
+            .onAppear {
+                // Refresh data when view appears
+                shieldManager.refreshData()
+            }
         }
     }
 }
