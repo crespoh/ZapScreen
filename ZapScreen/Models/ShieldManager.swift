@@ -15,27 +15,23 @@ class ShieldManager: ObservableObject {
     @Environment(\.modelContext) var modelContext
     static let shared = ShieldManager()
     
+    @Published var discouragedSelections = FamilyActivitySelection()
+    
     private let store = ManagedSettingsStore()
     private let database = DataBase()
     
     private init() {}
     
     func shieldActivities() {
-        // Get all shielded apps from database
-        let allShieldedApps = getShieldedApplications()
+        // Clear to reset previous settings
+        store.clearAllSettings()
+                     
+        let applications = discouragedSelections.applicationTokens
+        let categories = discouragedSelections.categoryTokens
         
-        // Get all temporarily unshielded apps
-        let unshieldedApps = getUnshieldedApplications()
-        
-        // Create a set of tokens that are currently unshielded
-        let unshieldedTokens = Set(unshieldedApps.map { $0.shieldedAppToken })
-        
-        // Only apply shield to apps that are NOT temporarily unshielded
-        for app in allShieldedApps {
-            if !unshieldedTokens.contains(app.applicationToken) {
-                store.shield.applications?.insert(app.applicationToken)
-            }
-        }
+        store.shield.applications = applications.isEmpty ? nil : applications
+        store.shield.applicationCategories = categories.isEmpty ? nil : .specific(categories)
+        store.shield.webDomainCategories = categories.isEmpty ? nil : .specific(categories)
     }
     
     // MARK: - Shield Management
@@ -62,10 +58,9 @@ class ShieldManager: ObservableObject {
             durationMinutes: durationMinutes
         )
         
-        // Add to unshielded collection (keep in shielded collection for history)
         database.addUnshieldedApplication(unshieldedApp)
         
-        // Remove shield temporarily from store only
+        // Remove shield temporarily
         store.shield.applications?.remove(application.applicationToken)
         
         // Start monitoring for expiry
@@ -76,14 +71,10 @@ class ShieldManager: ObservableObject {
         // Remove from unshielded collection
         database.removeUnshieldedApplication(unshieldedApp)
         
-        // Create the original app profile and re-add to shielded collection
-        let originalAppProfile = ApplicationProfile(
-            applicationToken: unshieldedApp.shieldedAppToken,
-            applicationName: unshieldedApp.applicationName
-        )
-        
-        // Re-add to shielded collection
-        addApplicationToShield(originalAppProfile)
+        // Get the original shielded app profile and reapply shield
+//        if let originalAppProfile = database.getApplicationProfileForUnshieldedApp(unshieldedApp) {
+//            addApplicationToShield(originalAppProfile)
+//        }
     }
     
     // MARK: - Legacy Support
