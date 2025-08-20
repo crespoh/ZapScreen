@@ -150,66 +150,6 @@ enum DateRange: Equatable {
     }
 }
 
-// MARK: - Supabase Models
-
-struct SupabaseUsageStatistics: Codable, Identifiable {
-    let id: String
-    let user_account_id: String
-    let child_device_id: String
-    let child_device_name: String
-    let app_name: String
-    let bundle_identifier: String
-    let total_requests_approved: Int
-    let total_time_approved_minutes: Int
-    let last_approved_date: String
-    let created_at: String
-    let updated_at: String
-    
-    // Computed properties for date conversion
-    var lastApprovedDate: Date? {
-        ISO8601DateFormatter().date(from: last_approved_date)
-    }
-}
-
-struct SupabaseUsageRecord: Codable, Identifiable {
-    let id: String
-    let user_account_id: String
-    let child_device_id: String
-    let child_device_name: String
-    let app_name: String
-    let bundle_identifier: String
-    let approved_date: String
-    let duration_minutes: Int
-    let request_id: String
-    let created_at: String
-    
-    var approvedDate: Date? {
-        ISO8601DateFormatter().date(from: approved_date)
-    }
-}
-
-struct SupabaseUsageStatisticsInsert: Encodable {
-    let user_account_id: String
-    let child_device_id: String
-    let child_device_name: String
-    let app_name: String
-    let bundle_identifier: String
-    let total_requests_approved: Int
-    let total_time_approved_minutes: Int
-    let last_approved_date: String
-}
-
-struct SupabaseUsageRecordInsert: Encodable {
-    let user_account_id: String
-    let child_device_id: String
-    let child_device_name: String
-    let app_name: String
-    let bundle_identifier: String
-    let approved_date: String
-    let duration_minutes: Int
-    let request_id: String
-}
-
 struct DataBase {
     private let defaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
     private let shieldedAppsKey = "ZapShieldedApplications"

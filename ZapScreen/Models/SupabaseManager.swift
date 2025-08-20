@@ -1,5 +1,4 @@
 import Foundation
-import ManagedSettings
 import Supabase
 import SwiftUI
 import os.log
@@ -311,7 +310,7 @@ class SupabaseManager {
         }
         logger.info("[SupabaseManager] SendUnlockEvent with token found \(finalAccessToken)")
 
-        guard let deviceId = await UIDevice.current.identifierForVendor?.uuidString else { return }
+        guard let deviceId = UIDevice.current.identifierForVendor?.uuidString else { return }
         guard let url = URL(string: "https://droyecamihyazodenamj.supabase.co/functions/v1/unlock-event") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -434,148 +433,5 @@ class SupabaseManager {
         } catch {
             completion(.failure(error))
         }
-    }
-    
-    // MARK: - Enhanced Usage Statistics Sync
-    
-    // Sync individual usage records to Supabase
-    func syncUsageRecords(_ records: [UsageRecord]) async throws {
-        await restoreSessionFromAppGroup()
-        guard let userId = client.auth.currentUser?.id.uuidString else {
-            throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
-        }
-        
-        guard let deviceId = await UIDevice.current.identifierForVendor?.uuidString else {
-            throw NSError(domain: "SupabaseManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "No device ID available"])
-        }
-        
-        let deviceName = await UIDevice.current.name
-        
-        let supabaseRecords = records.map { record in
-            SupabaseUsageRecordInsert(
-                user_account_id: userId,
-                child_device_id: deviceId,
-                child_device_name: deviceName,
-                app_name: record.appName,
-                bundle_identifier: getBundleIdentifier(for: record.applicationToken),
-                approved_date: ISO8601DateFormatter().string(from: record.approvedDate),
-                duration_minutes: record.durationMinutes,
-                request_id: record.requestId
-            )
-        }
-        
-        try await client
-            .from("usage_records")
-            .insert(supabaseRecords)
-            .execute()
-        
-        print("[SupabaseManager] Successfully synced \(records.count) usage records")
-    }
-    
-    // Sync usage statistics to Supabase
-    func syncUsageStatistics(_ statistics: [UsageStatistics]) async throws {
-        await restoreSessionFromAppGroup()
-        guard let userId = client.auth.currentUser?.id.uuidString else {
-            throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
-        }
-        
-        guard let deviceId = await UIDevice.current.identifierForVendor?.uuidString else {
-            throw NSError(domain: "SupabaseManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "No device ID available"])
-        }
-        
-        let deviceName = await UIDevice.current.name
-        
-        for stat in statistics {
-            let payload = SupabaseUsageStatisticsInsert(
-                user_account_id: userId,
-                child_device_id: deviceId,
-                child_device_name: deviceName,
-                app_name: stat.appName,
-                bundle_identifier: getBundleIdentifier(for: stat.applicationToken),
-                total_requests_approved: stat.totalRequestsApproved,
-                total_time_approved_minutes: stat.totalTimeApprovedMinutes,
-                last_approved_date: ISO8601DateFormatter().string(from: stat.lastApprovedDate ?? Date())
-            )
-            
-            // Upsert to handle both insert and update
-            try await client
-                .from("usage_statistics")
-                .upsert([payload], onConflict: "user_account_id,child_device_id,app_name")
-                .execute()
-        }
-        
-        print("[SupabaseManager] Successfully synced \(statistics.count) usage statistics")
-    }
-    
-    // Fetch usage statistics from Supabase for specific date range
-    func fetchUsageStatistics(for dateRange: DateRange) async throws -> [SupabaseUsageStatistics] {
-        await restoreSessionFromAppGroup()
-        guard let userId = client.auth.currentUser?.id.uuidString else {
-            throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
-        }
-        
-        guard let deviceId = await UIDevice.current.identifierForVendor?.uuidString else {
-            throw NSError(domain: "SupabaseManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "No device ID available"])
-        }
-        
-        let (startDate, endDate) = getDateRangeBounds(dateRange)
-        
-        let response = try await client
-            .rpc("get_usage_statistics_for_range", params: [
-                "p_user_id": userId,
-                "p_child_device_id": deviceId,
-                "p_start_date": ISO8601DateFormatter().string(from: startDate),
-                "p_end_date": ISO8601DateFormatter().string(from: endDate)
-            ] as [String: String])
-            .execute()
-        
-        let data = response.data
-        return try JSONDecoder().decode([SupabaseUsageStatistics].self, from: data)
-    }
-    
-    // Helper method to get date range bounds
-    private func getDateRangeBounds(_ range: DateRange) -> (Date, Date) {
-        let calendar = Calendar.current
-        let now = Date()
-        
-        switch range {
-        case .today:
-            let start = calendar.startOfDay(for: now)
-            let end = calendar.date(byAdding: .day, value: 1, to: start) ?? now
-            return (start, end)
-        case .yesterday:
-            let start = calendar.date(byAdding: .day, value: -1, to: now) ?? now
-            let end = calendar.startOfDay(for: now)
-            return (start, end)
-        case .thisWeek:
-            let weekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
-            let weekEnd = calendar.date(byAdding: .weekOfYear, value: 1, to: weekStart) ?? now
-            return (weekStart, weekEnd)
-        case .lastWeek:
-            let lastWeekStart = calendar.date(byAdding: .weekOfYear, value: -1, to: now) ?? now
-            let thisWeekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
-            return (lastWeekStart, thisWeekStart)
-        case .thisMonth:
-            let monthStart = calendar.dateInterval(of: .month, for: now)?.start ?? now
-            let monthEnd = calendar.date(byAdding: .month, value: 1, to: monthStart) ?? now
-            return (monthStart, monthEnd)
-        case .lastMonth:
-            let lastMonthStart = calendar.date(byAdding: .month, value: -1, to: now) ?? now
-            let thisMonthStart = calendar.dateInterval(of: .month, for: now)?.start ?? now
-            return (lastMonthStart, thisMonthStart)
-        case .custom(let start, let end):
-            return (start, end)
-        case .allTime:
-            let distantPast = Date.distantPast
-            let distantFuture = Date.distantFuture
-            return (distantPast, distantFuture)
-        }
-    }
-    
-    // Helper method to get bundle identifier from ApplicationToken
-    private func getBundleIdentifier(for applicationToken: ApplicationToken) -> String {
-        // For now, return a placeholder. In a real implementation, you might need to
-        // store a mapping of ApplicationToken to bundle identifier, or use a different approach
-        return "com.placeholder.app" // This will need to be enhanced in future phases
     }
 }

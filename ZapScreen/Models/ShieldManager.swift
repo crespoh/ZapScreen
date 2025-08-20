@@ -81,32 +81,8 @@ class ShieldManager: ObservableObject {
         // Add to unshielded collection (keep in shielded collection for history)
         database.addUnshieldedApplication(unshieldedApp)
         
-        // Update usage statistics locally
+        // Update usage statistics
         database.updateUsageStatistics(for: application.applicationName, durationMinutes: durationMinutes)
-        
-        // Create usage record for Supabase sync
-        let record = UsageRecord(
-            appName: application.applicationName,
-            applicationToken: application.applicationToken,
-            durationMinutes: durationMinutes
-        )
-        
-        // Sync to Supabase (both record and updated statistics)
-        Task {
-            do {
-                // Sync individual record for detailed tracking
-                try await SupabaseManager.shared.syncUsageRecords([record])
-                
-                // Also sync updated statistics for quick access
-                let statistics = database.getUsageStatistics()
-                try await SupabaseManager.shared.syncUsageStatistics(Array(statistics.values))
-                
-                print("[ShieldManager] Successfully synced usage data to Supabase")
-            } catch {
-                print("[ShieldManager] Failed to sync usage data to Supabase: \(error)")
-                // Could implement retry logic or offline queue here in future phases
-            }
-        }
         
         // Remove shield temporarily from store only
         store.shield.applications?.remove(application.applicationToken)

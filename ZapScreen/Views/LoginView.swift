@@ -199,7 +199,7 @@ struct LoginView: View {
                         if exists {
                             print("[LoginView] Device already exists in Supabase.")
                         } else {
-                            let deviceName = await UIDevice.current.name
+                            let deviceName = UIDevice.current.name
                             let isParent = true // or false, depending on your logic
                             let userAccountId = SupabaseManager.shared.client.auth.currentUser?.id.uuidString ?? ""
                             let device = try await SupabaseManager.shared.addDevice(deviceToken: token, deviceName: deviceName, isParent: isParent, userAccountId: userAccountId)
