@@ -8,6 +8,7 @@
 import SwiftUI
 import ManagedSettings
 import ManagedSettingsUI
+import FamilyControls
 
 struct SettingsView: View {
     @EnvironmentObject var appIconStore: AppIconStore
@@ -45,6 +46,26 @@ struct SettingsView: View {
                         
                         NavigationLink("Device Activity Report", destination: DeviceActivityView())
                             .foregroundColor(.blue)
+                        
+                        Button("Reset Authorization") {
+                            resetAuthorization()
+                        }
+                        .foregroundColor(.red)
+                        
+                        Button("Check Authorization Status") {
+                            checkAuthorizationStatus()
+                        }
+                        .foregroundColor(.blue)
+                        
+                        Button("Check Shield Status") {
+                            checkShieldStatus()
+                        }
+                        .foregroundColor(.orange)
+                        
+                        Button("Force Apply Shields") {
+                            forceApplyShields()
+                        }
+                        .foregroundColor(.purple)
                     }
                     
                     Section("Debug Information") {
@@ -71,6 +92,12 @@ struct SettingsView: View {
                     }
                 }
                 
+                        // Device Management
+        Section("Device Management") {
+            NavigationLink("Scan Child Device QR Code", destination: QRCodeScannerView())
+                .foregroundColor(.green)
+        }
+                
                 // App Information
                 Section("App Information") {
                     HStack {
@@ -90,6 +117,88 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
         }
+    }
+    
+    // MARK: - Debug Methods
+    private func resetAuthorization() {
+        print("[SettingsView] Resetting authorization...")
+        
+        // Reset UserDefaults
+        if let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") {
+            groupDefaults.removeObject(forKey: "selectedRole")
+            groupDefaults.removeObject(forKey: "isAuthorized")
+            groupDefaults.removeObject(forKey: "authRetryCount")
+            print("[SettingsView] Reset selectedRole, isAuthorized, and authRetryCount in UserDefaults")
+        }
+        
+        // Check current authorization status
+        let center = AuthorizationCenter.shared
+        let currentStatus = center.authorizationStatus
+        print("[SettingsView] Current authorization status: \(currentStatus)")
+        
+        print("[SettingsView] Please restart the app to complete the reset")
+    }
+    
+    private func checkAuthorizationStatus() {
+        let center = AuthorizationCenter.shared
+        let currentStatus = center.authorizationStatus
+        
+        print("[SettingsView] ====== Authorization Status Check ======")
+        print("[SettingsView] Authorization Status: \(currentStatus)")
+        
+        if let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") {
+            let selectedRole = groupDefaults.string(forKey: "selectedRole")
+            let isAuthorized = groupDefaults.bool(forKey: "isAuthorized")
+            let isLoggedIn = groupDefaults.bool(forKey: "isLoggedIn")
+            let authRetryCount = groupDefaults.integer(forKey: "authRetryCount")
+            
+            print("[SettingsView] UserDefaults - selectedRole: \(selectedRole ?? "nil")")
+            print("[SettingsView] UserDefaults - isAuthorized: \(isAuthorized)")
+            print("[SettingsView] UserDefaults - isLoggedIn: \(isLoggedIn)")
+            print("[SettingsView] UserDefaults - authRetryCount: \(authRetryCount)")
+        }
+    }
+    
+    private func checkShieldStatus() {
+        print("[SettingsView] ====== Shield Status Check ======")
+        
+        // Check ShieldManager status
+        ShieldManager.shared.checkAuthorizationStatus()
+        
+        // Check database status
+        let database = DataBase()
+        let shieldedApps = database.getShieldedApplications()
+        let unshieldedApps = database.getUnshieldedApplications()
+        
+        print("[SettingsView] Database - Shielded apps: \(shieldedApps.count)")
+        print("[SettingsView] Database - Unshielded apps: \(unshieldedApps.count)")
+        
+        // List shielded apps
+        for (id, app) in shieldedApps {
+            print("[SettingsView] Shielded app: \(app.applicationName) (ID: \(id))")
+        }
+        
+        // List unshielded apps
+        for (id, app) in unshieldedApps {
+            print("[SettingsView] Unshielded app: \(app.applicationName) (ID: \(id)) - Expires: \(app.expiryDate)")
+        }
+        
+        // Check ShieldManager published properties
+        let shieldManager = ShieldManager.shared
+        print("[SettingsView] ShieldManager - Shielded apps: \(shieldManager.shieldedApplications.count)")
+        print("[SettingsView] ShieldManager - Unshielded apps: \(shieldManager.unshieldedApplications.count)")
+        
+        print("[SettingsView] ====== Shield Status Check Complete ======")
+    }
+    
+    private func forceApplyShields() {
+        print("[SettingsView] ====== Force Apply Shields ======")
+        
+        // Force refresh data and apply shields
+        ShieldManager.shared.refreshData()
+        ShieldManager.shared.shieldActivities()
+        
+        print("[SettingsView] ====== Force Apply Shields Complete ======")
     }
 }
 

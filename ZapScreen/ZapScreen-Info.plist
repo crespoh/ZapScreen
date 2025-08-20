@@ -41,5 +41,7 @@
 	<array>
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER).DeviceActivity</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>This app uses the camera to scan QR codes for pairing child devices with parent devices.</string>
 </dict>
 </plist>

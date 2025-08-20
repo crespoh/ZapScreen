@@ -22,22 +22,30 @@ class ShieldManager: ObservableObject {
     private let database = DataBase()
     
     private init() {
+        print("[ShieldManager] Initializing ShieldManager")
+        checkAuthorizationStatus()
         refreshData()
+        print("[ShieldManager] ShieldManager initialized with \(shieldedApplications.count) shielded apps")
     }
     
     // MARK: - Data Refresh
     
     func refreshData() {
+        print("[ShieldManager] Refreshing data...")
         shieldedApplications = getShieldedApplications()
         unshieldedApplications = getUnshieldedApplications()
+        print("[ShieldManager] Data refreshed - Shielded: \(shieldedApplications.count), Unshielded: \(unshieldedApplications.count)")
     }
     
     func shieldActivities() {
+        print("[ShieldManager] shieldActivities() called")
         // Get all shielded apps from database
         let allShieldedApps = getShieldedApplications()
+        print("[ShieldManager] Found \(allShieldedApps.count) shielded apps in database")
         
         // Get all temporarily unshielded apps
         let unshieldedApps = getUnshieldedApplications()
+        print("[ShieldManager] Found \(unshieldedApps.count) unshielded apps")
         
         // Create a set of tokens that are currently unshielded
         let unshieldedTokens = Set(unshieldedApps.map { $0.shieldedAppToken })
@@ -45,17 +53,23 @@ class ShieldManager: ObservableObject {
         // Only apply shield to apps that are NOT temporarily unshielded
         for app in allShieldedApps {
             if !unshieldedTokens.contains(app.applicationToken) {
+                print("[ShieldManager] Applying shield to: \(app.applicationName)")
                 store.shield.applications?.insert(app.applicationToken)
+            } else {
+                print("[ShieldManager] Skipping shield for temporarily unshielded app: \(app.applicationName)")
             }
         }
+        print("[ShieldManager] shieldActivities() completed")
     }
     
     // MARK: - Shield Management
     
     func addApplicationToShield(_ application: ApplicationProfile) {
+        print("[ShieldManager] Adding application to shield: \(application.applicationName)")
         database.addShieldedApplication(application)
         // Apply shield immediately
         store.shield.applications?.insert(application.applicationToken)
+        print("[ShieldManager] Shield applied to: \(application.applicationName)")
         // Refresh data to trigger UI update
         refreshData()
     }
@@ -221,5 +235,23 @@ class ShieldManager: ObservableObject {
         // Use FamilyActivityCategory enum directly for categories
         store.shield.applicationCategories = .all(except: []) // Block all categories
         store.shield.applications = nil // Or include everything
+    }
+    
+    // Debug function to check authorization status
+    func checkAuthorizationStatus() {
+        let center = AuthorizationCenter.shared
+        let status = center.authorizationStatus
+        print("[ShieldManager] Family Controls Authorization Status: \(status)")
+        
+        switch status {
+        case .approved:
+            print("[ShieldManager] ✅ Authorization approved - shielding should work")
+        case .denied:
+            print("[ShieldManager] ❌ Authorization denied - shielding will not work")
+        case .notDetermined:
+            print("[ShieldManager] ⚠️ Authorization not determined - need to request authorization")
+        @unknown default:
+            print("[ShieldManager] ❓ Unknown authorization status")
+        }
     }
 }
