@@ -81,15 +81,18 @@ struct ShieldCustomView: View {
                     // Display the selected ApplicationToken for comparison
                     if let selectedToken = selection.applicationTokens.first {
                         VStack(spacing: 12) {
-                            
-                            Label(selectedToken)
-                                .labelStyle(.iconOnly)
-                                .font(.title)
-//                                .padding()
-//                                .background(
-//                                    RoundedRectangle(cornerRadius: 12)
-//                                        .fill(Color.blue.opacity(0.1))
-//                                )
+                            // Large app icon display
+                            VStack(spacing: 16) {
+                                // Large app icon - try different sizing approach
+                                Label(selectedToken)
+                                    .labelStyle(.iconOnly)
+                                    .scaleEffect(3.0) // Scale the icon to 3x size
+                            }
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(Color.blue.opacity(0.1))
+                            )
                         }
                         .padding(.horizontal)
                     }
