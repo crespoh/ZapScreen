@@ -81,9 +81,6 @@ class ShieldManager: ObservableObject {
         // Add to unshielded collection (keep in shielded collection for history)
         database.addUnshieldedApplication(unshieldedApp)
         
-        // Update usage statistics
-        database.updateUsageStatistics(for: application.applicationName, durationMinutes: durationMinutes)
-        
         // Remove shield temporarily from store only
         store.shield.applications?.remove(application.applicationToken)
         

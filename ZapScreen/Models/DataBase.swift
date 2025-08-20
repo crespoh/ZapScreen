@@ -8,135 +8,10 @@
 import Foundation
 import ManagedSettings
 
-// MARK: - Usage Statistics Models
-
-struct UsageRecord: Codable, Identifiable {
-    let id = UUID()
-    let appName: String
-    let applicationToken: ApplicationToken
-    let approvedDate: Date
-    let durationMinutes: Int
-    let requestId: String
-    
-    init(appName: String, applicationToken: ApplicationToken, durationMinutes: Int, requestId: String? = nil) {
-        self.appName = appName
-        self.applicationToken = applicationToken
-        self.approvedDate = Date()
-        self.durationMinutes = durationMinutes
-        self.requestId = requestId ?? UUID().uuidString
-    }
-}
-
-struct UsageStatistics: Codable, Identifiable {
-    let id = UUID()
-    let appName: String
-    let applicationToken: ApplicationToken
-    var totalRequestsApproved: Int
-    var totalTimeApprovedMinutes: Int
-    var lastApprovedDate: Date?
-    var usageRecords: [UsageRecord]
-    
-    init(appName: String, applicationToken: ApplicationToken) {
-        self.appName = appName
-        self.applicationToken = applicationToken
-        self.totalRequestsApproved = 0
-        self.totalTimeApprovedMinutes = 0
-        self.lastApprovedDate = nil
-        self.usageRecords = []
-    }
-    
-    // Computed properties for date-based filtering
-    var todayUsage: (requests: Int, minutes: Int) {
-        let today = Calendar.current.startOfDay(for: Date())
-        let todayRecords = usageRecords.filter { 
-            Calendar.current.isDate($0.approvedDate, inSameDayAs: today)
-        }
-        return (
-            requests: todayRecords.count,
-            minutes: todayRecords.reduce(0) { $0 + $1.durationMinutes }
-        )
-    }
-    
-    var thisWeekUsage: (requests: Int, minutes: Int) {
-        let weekStart = Calendar.current.dateInterval(of: .weekOfYear, for: Date())?.start ?? Date()
-        let weekRecords = usageRecords.filter { $0.approvedDate >= weekStart }
-        return (
-            requests: weekRecords.count,
-            minutes: weekRecords.reduce(0) { $0 + $1.durationMinutes }
-        )
-    }
-    
-    var thisMonthUsage: (requests: Int, minutes: Int) {
-        let monthStart = Calendar.current.dateInterval(of: .month, for: Date())?.start ?? Date()
-        let monthRecords = usageRecords.filter { $0.approvedDate >= monthStart }
-        return (
-            requests: monthRecords.count,
-            minutes: monthRecords.reduce(0) { $0 + $1.durationMinutes }
-        )
-    }
-}
-
-// Date range enum
-enum DateRange {
-    case today
-    case yesterday
-    case thisWeek
-    case lastWeek
-    case thisMonth
-    case lastMonth
-    case custom(start: Date, end: Date)
-    case allTime
-    
-    func contains(_ date: Date) -> Bool {
-        let calendar = Calendar.current
-        let now = Date()
-        
-        switch self {
-        case .today:
-            return calendar.isDate(date, inSameDayAs: now)
-        case .yesterday:
-            let yesterday = calendar.date(byAdding: .day, value: -1, to: now) ?? now
-            return calendar.isDate(date, inSameDayAs: yesterday)
-        case .thisWeek:
-            let weekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
-            return date >= weekStart
-        case .lastWeek:
-            let lastWeekStart = calendar.date(byAdding: .weekOfYear, value: -1, to: now) ?? now
-            let lastWeekEnd = calendar.date(byAdding: .day, value: -1, to: now) ?? now
-            return date >= lastWeekStart && date <= lastWeekEnd
-        case .thisMonth:
-            let monthStart = calendar.dateInterval(of: .month, for: now)?.start ?? now
-            return date >= monthStart
-        case .lastMonth:
-            let lastMonthStart = calendar.date(byAdding: .month, value: -1, to: now) ?? now
-            let lastMonthEnd = calendar.date(byAdding: .day, value: -1, to: now) ?? now
-            return date >= lastMonthStart && date <= lastMonthEnd
-        case .custom(let start, let end):
-            return date >= start && date <= end
-        case .allTime:
-            return true
-        }
-    }
-    
-    var displayName: String {
-        switch self {
-        case .today: return "Today"
-        case .yesterday: return "Yesterday"
-        case .thisWeek: return "This Week"
-        case .lastWeek: return "Last Week"
-        case .thisMonth: return "This Month"
-        case .lastMonth: return "Last Month"
-        case .custom: return "Custom Range"
-        case .allTime: return "All Time"
-        }
-    }
-}
-
 struct DataBase {
     private let defaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
     private let shieldedAppsKey = "ZapShieldedApplications"
     private let unshieldedAppsKey = "ZapUnshieldedApplications"
-    private let usageStatisticsKey = "ZapUsageStatistics"
     
     // MARK: - Shielded Applications (Permanently blocked)
     
@@ -255,7 +130,7 @@ struct DataBase {
         
         // Check if it exists in unshielded apps and remove it
         let unshieldedApps = getUnshieldedApplications()
-        for (_, unshieldedApp) in unshieldedApps {
+        for (id, unshieldedApp) in unshieldedApps {
             if unshieldedApp.id == application.id {
                 removeUnshieldedApplication(unshieldedApp)
                 break
@@ -313,74 +188,6 @@ struct DataBase {
         if updatedApps.count != unshieldedApps.count {
             saveUnshieldedApplications(updatedApps)
         }
-    }
-    
-    // MARK: - Usage Statistics
-    
-    func getUsageStatistics() -> [String: UsageStatistics] {
-        guard let data = defaults?.data(forKey: usageStatisticsKey) else { return [String: UsageStatistics]() }
-        guard let decoded = try? JSONDecoder().decode([String: UsageStatistics].self, from: data) else { return [String: UsageStatistics]() }
-        return decoded
-    }
-    
-    func saveUsageStatistics(_ statistics: [String: UsageStatistics]) {
-        guard let encoded = try? JSONEncoder().encode(statistics) else { return }
-        defaults?.set(encoded, forKey: usageStatisticsKey)
-    }
-    
-    func updateUsageStatistics(for appName: String, durationMinutes: Int, requestId: String? = nil) {
-        var statistics = getUsageStatistics()
-        
-        if statistics[appName] == nil {
-            // Create new entry if doesn't exist
-            // We need to get the ApplicationToken from shielded apps
-            if let (appProfile, _) = getApplicationByName(appName) {
-                statistics[appName] = UsageStatistics(
-                    appName: appName,
-                    applicationToken: appProfile.applicationToken
-                )
-            }
-        }
-        
-        // Create usage record
-        if let appProfile = statistics[appName]?.applicationToken {
-            let record = UsageRecord(
-                appName: appName,
-                applicationToken: appProfile,
-                durationMinutes: durationMinutes,
-                requestId: requestId
-            )
-            
-            // Update statistics
-            statistics[appName]?.usageRecords.append(record)
-            statistics[appName]?.totalRequestsApproved += 1
-            statistics[appName]?.totalTimeApprovedMinutes += durationMinutes
-            statistics[appName]?.lastApprovedDate = Date()
-        }
-        
-        saveUsageStatistics(statistics)
-    }
-    
-    // New methods for date-based filtering
-    func getUsageStatistics(for dateRange: DateRange) -> [String: UsageStatistics] {
-        let allStats = getUsageStatistics()
-        var filteredStats: [String: UsageStatistics] = [:]
-        
-        for (appName, stat) in allStats {
-            let filteredRecords = stat.usageRecords.filter { record in
-                dateRange.contains(record.approvedDate)
-            }
-            
-            if !filteredRecords.isEmpty {
-                var filteredStat = stat
-                filteredStat.usageRecords = filteredRecords
-                filteredStat.totalRequestsApproved = filteredRecords.count
-                filteredStat.totalTimeApprovedMinutes = filteredRecords.reduce(0) { $0 + $1.durationMinutes }
-                filteredStats[appName] = filteredStat
-            }
-        }
-        
-        return filteredStats
     }
 }
 
