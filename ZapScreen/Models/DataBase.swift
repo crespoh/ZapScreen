@@ -77,7 +77,7 @@ struct UsageStatistics: Codable, Identifiable {
 }
 
 // Date range enum
-enum DateRange: Equatable {
+enum DateRange {
     case today
     case yesterday
     case thisWeek
@@ -128,24 +128,6 @@ enum DateRange: Equatable {
         case .lastMonth: return "Last Month"
         case .custom: return "Custom Range"
         case .allTime: return "All Time"
-        }
-    }
-    
-    // Manual Equatable implementation for cases with associated values
-    static func == (lhs: DateRange, rhs: DateRange) -> Bool {
-        switch (lhs, rhs) {
-        case (.today, .today),
-             (.yesterday, .yesterday),
-             (.thisWeek, .thisWeek),
-             (.lastWeek, .lastWeek),
-             (.thisMonth, .thisMonth),
-             (.lastMonth, .lastMonth),
-             (.allTime, .allTime):
-            return true
-        case (.custom(let lhsStart, let lhsEnd), .custom(let rhsStart, let rhsEnd)):
-            return lhsStart == rhsStart && lhsEnd == rhsEnd
-        default:
-            return false
         }
     }
 }
