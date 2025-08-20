@@ -14,8 +14,14 @@ class UsageStatisticsViewModel: ObservableObject {
     @Published var selectedDateRange: DateRange = .allTime
     @Published var sortOption: SortOption = .appName
     @Published var isLoading: Bool = false
+    @Published var dataSource: DataSource = .local // New: local vs remote
     
     private let database = DataBase()
+    
+    enum DataSource: String, CaseIterable {
+        case local = "Local"
+        case remote = "Remote"
+    }
     
     enum SortOption: String, CaseIterable {
         case appName = "App Name"
@@ -30,28 +36,52 @@ class UsageStatisticsViewModel: ObservableObject {
     func loadUsageStatistics() {
         isLoading = true
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            let statistics = self.database.getUsageStatistics(for: self.selectedDateRange)
-            self.usageStatistics = Array(statistics.values).sorted { first, second in
-                switch self.sortOption {
-                case .appName:
-                    return first.appName < second.appName
-                case .totalRequests:
-                    return first.totalRequestsApproved > second.totalRequestsApproved
-                case .totalTime:
-                    return first.totalTimeApprovedMinutes > second.totalTimeApprovedMinutes
-                case .lastUsed:
-                    return (first.lastApprovedDate ?? Date.distantPast) > (second.lastApprovedDate ?? Date.distantPast)
-                case .todayUsage:
-                    return first.todayUsage.minutes > second.todayUsage.minutes
-                case .weekUsage:
-                    return first.thisWeekUsage.minutes > second.thisWeekUsage.minutes
-                case .monthUsage:
-                    return first.thisMonthUsage.minutes > second.thisMonthUsage.minutes
+        Task {
+            do {
+                switch dataSource {
+                case .local:
+                    await loadLocalStatistics()
+                case .remote:
+                    try! await loadRemoteStatistics()
                 }
+            } catch {
+                print("[UsageStatisticsViewModel] Failed to load statistics: \(error)")
+                // Fallback to local data
+                await loadLocalStatistics()
             }
-            self.isLoading = false
         }
+    }
+    
+    @MainActor
+    private func loadLocalStatistics() async {
+        let statistics = database.getUsageStatistics(for: selectedDateRange)
+        usageStatistics = Array(statistics.values).sorted { first, second in
+            switch sortOption {
+            case .appName:
+                return first.appName < second.appName
+            case .totalRequests:
+                return first.totalRequestsApproved > second.totalRequestsApproved
+            case .totalTime:
+                return first.totalTimeApprovedMinutes > second.totalTimeApprovedMinutes
+            case .lastUsed:
+                return (first.lastApprovedDate ?? Date.distantPast) > (second.lastApprovedDate ?? Date.distantPast)
+            case .todayUsage:
+                return first.todayUsage.minutes > second.todayUsage.minutes
+            case .weekUsage:
+                return first.thisWeekUsage.minutes > second.thisWeekUsage.minutes
+            case .monthUsage:
+                return first.thisMonthUsage.minutes > second.thisMonthUsage.minutes
+            }
+        }
+        isLoading = false
+    }
+    
+    @MainActor
+    private func loadRemoteStatistics() async throws {
+        // For now, skip remote loading until we have proper ApplicationToken handling
+        // This will be implemented in future phases
+        print("[UsageStatisticsViewModel] Remote loading not yet implemented - falling back to local data")
+        await loadLocalStatistics()
     }
     
     func changeDateRange(_ range: DateRange) {
