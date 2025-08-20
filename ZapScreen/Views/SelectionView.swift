@@ -78,7 +78,7 @@ struct SelectionView: View {
                     // Save DeviceName and Role to group UserDefaults
                     groupDefaults?.set(role.rawValue, forKey: "zap_userRole")
                     groupDefaults?.set(deviceOwnerName, forKey: "DeviceName")
-                    if let deviceId = groupDefaults?.string(forKey: "ZapDeviceId") {
+                    if groupDefaults?.string(forKey: "ZapDeviceId") != nil {
                         // Update device name and parent status using SupabaseManager
                         Task {
                             do {

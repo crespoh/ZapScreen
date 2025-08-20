@@ -55,7 +55,7 @@ struct ShieldCustomView: View {
         .navigationBarBackButtonHidden(true)
         .onAppear() {
         }
-        .onChange(of: selection) { newSelection in
+        .onChange(of: selection) { _, newSelection in
             
             let apps = newSelection.applicationTokens
             let cats = newSelection.categoryTokens
@@ -135,7 +135,7 @@ struct ShieldCustomView: View {
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                             .autocapitalization(.words)
                             .disableAutocorrection(false)
-                            .onChange(of: enteredAppName) { newValue in
+                            .onChange(of: enteredAppName) { _, newValue in
                                 // Clear selected icon when user types
                                 selectedAppIcon = nil
                             }
@@ -144,7 +144,7 @@ struct ShieldCustomView: View {
                     
                     // Enhanced app suggestions - Always show when typing
                     if enteredAppName.count >= 2 {
-                        let systemRegion = Locale.current.regionCode ?? "US"
+                        let systemRegion = Locale.current.region?.identifier ?? "US"
                         let filteredApps = appIconStore.apps.filter { app in
                             (app.region == nil || app.region?.isEmpty == true || app.region?.lowercased() == systemRegion.lowercased()) &&
                             app.app_name.lowercased().contains(enteredAppName.lowercased())
