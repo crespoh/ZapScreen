@@ -10,6 +10,7 @@ struct ContentView: View {
     @AppStorage("selectedRole", store: UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")) private var selectedRole: String?
     @AppStorage("isAuthorized", store: UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")) private var isAuthorized = false
     @AppStorage("zapShowRemoteLock", store: UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")) private var zapShowRemoteLock: Bool = false
+    @AppStorage("debugModeEnabled", store: UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")) private var debugModeEnabled = false
     
     var body: some View {
 
@@ -31,14 +32,22 @@ struct ContentView: View {
                         
                     }
                 
-                GroupUserDefaultsView()
-                    .tabItem {
-                        Label("Debug", systemImage: "ladybug")
-                    }
+                // Debug tabs - only shown when debug mode is enabled
+                if debugModeEnabled {
+                    GroupUserDefaultsView()
+                        .tabItem {
+                            Label("Debug", systemImage: "ladybug")
+                        }
+                    
+                    AppIconListView()
+                        .tabItem {
+                            Label("Icons", systemImage: "app.badge")
+                        }
+                }
                 
-                AppIconListView()
+                SettingsView()
                     .tabItem {
-                        Label("Icons", systemImage: "app.badge")
+                        Label("Settings", systemImage: "gear")
                     }
             }
             .navigationTitle("ZapScreen")
