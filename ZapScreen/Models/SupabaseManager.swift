@@ -12,7 +12,6 @@ struct SupabaseDeviceInsert: Encodable {
     let device_name: String
     let is_parent: Bool
     let user_account_id: String
-    let child_name: String? // New: child name for child devices
 }
 
 struct SupabaseDevice: Codable, Identifiable {
@@ -22,19 +21,11 @@ struct SupabaseDevice: Codable, Identifiable {
     let device_name: String
     let is_parent: Bool
     let user_account_id: String
-    let child_name: String? // New: child name for child devices
     let created_at: String
-    let updated_at: String? // New: updated timestamp
     
     // Optional: Convert created_at to Date
     var createdAtDate: Date? {
         ISO8601DateFormatter().date(from: created_at)
-    }
-    
-    // Optional: Convert updated_at to Date
-    var updatedAtDate: Date? {
-        guard let updated_at = updated_at else { return nil }
-        return ISO8601DateFormatter().date(from: updated_at)
     }
 }
 
@@ -55,43 +46,6 @@ struct SupabaseParentChildInsert: Encodable {
     let parent_device_id: String
     let child_device_id: String
     let user_account_id: String
-}
-
-// MARK: - Multi-Child Support Models
-
-struct SupabaseFamilySummary: Codable, Identifiable {
-    let id: String // Use a computed property for Identifiable
-    let child_name: String
-    let device_name: String
-    let device_id: String
-    let total_apps: Int
-    let total_requests: Int
-    let total_minutes: Int
-    let last_activity: String?
-    
-    var lastActivityDate: Date? {
-        guard let last_activity = last_activity else { return nil }
-        return ISO8601DateFormatter().date(from: last_activity)
-    }
-    
-    // Computed property for Identifiable
-    var identifier: String { device_id }
-}
-
-struct SupabaseChildDevice: Codable, Identifiable {
-    let id: String // Use device_id as the identifier
-    let child_name: String
-    let device_name: String
-    let device_id: String
-    let device_token: String?
-    let created_at: String
-    
-    var createdAtDate: Date? {
-        ISO8601DateFormatter().date(from: created_at)
-    }
-    
-    // Computed property for Identifiable
-    var identifier: String { device_id }
 }
 
 class SupabaseManager {
@@ -156,37 +110,20 @@ class SupabaseManager {
         guard let deviceId = await UIDevice.current.identifierForVendor?.uuidString else {
             return false
         }
-        
-        print("[SupabaseManager] Checking if device exists - Device ID: \(deviceId), Token: \(String(deviceToken.prefix(10)))...")
-        
-        // Query for either device_token or device_id using proper Supabase syntax
+        // Query for either device_token or device_id
         let response = try await client
             .from("devices")
             .select("id")
-            .or("device_token.eq.\(deviceToken),device_id.eq.\(deviceId)")
+            .or("device_token.eq.", referencedTable: nil)
+            .or("device_token.eq.\(deviceToken),device_id.eq.\(deviceId)", referencedTable: nil)
             .limit(1)
             .execute()
-        
         let data = response.data
-        print("[SupabaseManager] Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
-        
         do {
             let devices = try JSONDecoder().decode([SupabaseDevice].self, from: data)
-            let exists = !devices.isEmpty
-            print("[SupabaseManager] Device exists check result: \(exists)")
-            return exists
+            return !devices.isEmpty
         } catch {
             print("[SupabaseManager] Decoding error in deviceExists: \(error)")
-            // Try parsing as simple array of objects with just 'id'
-            do {
-                if let jsonArray = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
-                    let exists = !jsonArray.isEmpty
-                    print("[SupabaseManager] Device exists check result (fallback): \(exists)")
-                    return exists
-                }
-            } catch {
-                print("[SupabaseManager] Fallback parsing also failed: \(error)")
-            }
         }
         return false
     }
@@ -212,8 +149,7 @@ class SupabaseManager {
             device_id: deviceId,
             device_name: deviceName,
             is_parent: isParent,
-            user_account_id: userAccountId,
-            child_name: nil // Will be set when registering child devices
+            user_account_id: userAccountId
         )
         let response = try await client
             .from("devices")
@@ -312,7 +248,7 @@ class SupabaseManager {
             .execute()
         let relData = relResponse.data
         let existingRels = try JSONDecoder().decode([SupabaseParentChild].self, from: relData)
-        let existingPairs = Set(existingRels.map { $0.parent_device_id + ":" + $0.child_device_id })
+        var existingPairs = Set(existingRels.map { $0.parent_device_id + ":" + $0.child_device_id })
         var createdPairs: [(parent: String, child: String)] = []
         for parent in parents {
             for child in children {
@@ -341,7 +277,7 @@ class SupabaseManager {
         guard let userId = client.auth.currentUser?.id.uuidString else {
             throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found for delete."])
         }
-        _ = try await client
+        let response = try await client
             .from("devices")
             .delete()
             .eq("device_id", value: deviceId)
@@ -355,7 +291,7 @@ class SupabaseManager {
         // Call Supabase Edge Function for unlock-event
         let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
         var accessToken = groupDefaults?.string(forKey: "supabase_access_token")
-        let refreshToken = groupDefaults?.string(forKey: "supabase_refresh_token")
+        var refreshToken = groupDefaults?.string(forKey: "supabase_refresh_token")
         
         logger.info("[SupabaseManager] SendUnlockEvent")
         // If no access token, try silent refresh
@@ -515,15 +451,11 @@ class SupabaseManager {
         
         let deviceName = await UIDevice.current.name
         
-        // Get child name from device registration
-        let childName = try? await getChildNameForDevice(deviceId: deviceId)
-        
         let supabaseRecords = records.map { record in
             SupabaseUsageRecordInsert(
                 user_account_id: userId,
                 child_device_id: deviceId,
                 child_device_name: deviceName,
-                child_name: childName,
                 app_name: record.appName,
                 bundle_identifier: getBundleIdentifier(for: record.applicationToken),
                 approved_date: ISO8601DateFormatter().string(from: record.approvedDate),
@@ -553,15 +485,11 @@ class SupabaseManager {
         
         let deviceName = await UIDevice.current.name
         
-        // Get child name from device registration
-        let childName = try? await getChildNameForDevice(deviceId: deviceId)
-        
         for stat in statistics {
             let payload = SupabaseUsageStatisticsInsert(
                 user_account_id: userId,
                 child_device_id: deviceId,
                 child_device_name: deviceName,
-                child_name: childName,
                 app_name: stat.appName,
                 bundle_identifier: getBundleIdentifier(for: stat.applicationToken),
                 total_requests_approved: stat.totalRequestsApproved,
@@ -649,223 +577,5 @@ class SupabaseManager {
         // For now, return a placeholder. In a real implementation, you might need to
         // store a mapping of ApplicationToken to bundle identifier, or use a different approach
         return "com.placeholder.app" // This will need to be enhanced in future phases
-    }
-    
-    // MARK: - Multi-Child Support Methods
-    
-    // Register child device with name
-    func registerChildDevice(deviceId: String, deviceName: String, childName: String, deviceToken: String? = nil) async throws -> String {
-        await restoreSessionFromAppGroup()
-        guard let userId = client.auth.currentUser?.id.uuidString else {
-            throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
-        }
-        
-        // Ensure userId is a valid UUID format
-        guard let uuid = UUID(uuidString: userId) else {
-            throw NSError(domain: "SupabaseManager", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid user ID format"])
-        }
-        
-        let params: [String: String] = [
-            "p_user_account_id": uuid.uuidString,
-            "p_device_id": deviceId,
-            "p_device_name": deviceName,
-            "p_child_name": childName,
-            "p_device_token": deviceToken ?? ""
-        ]
-        
-        print("[SupabaseManager] Registering child device with params: \(params)")
-        
-        let response = try await client
-            .rpc("register_child_device_with_name", params: params)
-            .execute()
-        
-        let data = response.data
-        print("[SupabaseManager] Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
-        
-        // Try to parse as JSON object first (for function name wrapper)
-        if let result = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let returnedDeviceId = result["register_child_device_with_name"] as? String {
-            print("[SupabaseManager] Successfully registered child device: \(childName)")
-            return returnedDeviceId
-        }
-        
-        // If that fails, try to parse as plain string (direct UUID return)
-        if let responseString = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) {
-            print("[SupabaseManager] Successfully registered child device: \(childName)")
-            return responseString
-        }
-        
-        throw NSError(domain: "SupabaseManager", code: 500, userInfo: [NSLocalizedDescriptionKey: "Invalid response format from register_child_device_with_name"])
-    }
-    
-    // Register parent device
-    func registerParentDevice(deviceId: String, deviceName: String, deviceToken: String? = nil) async throws -> String {
-        await restoreSessionFromAppGroup()
-        guard let userId = client.auth.currentUser?.id.uuidString else {
-            throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
-        }
-        
-        // Ensure userId is a valid UUID format
-        guard let uuid = UUID(uuidString: userId) else {
-            throw NSError(domain: "SupabaseManager", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid user ID format"])
-        }
-        
-        let response = try await client
-            .rpc("register_parent_device", params: [
-                "p_user_account_id": uuid.uuidString,
-                "p_device_id": deviceId,
-                "p_device_name": deviceName,
-                "p_device_token": deviceToken ?? ""
-            ] as [String: String])
-            .execute()
-        
-        let data = response.data
-        print("[SupabaseManager] Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
-        
-        // Try to parse as JSON object first (for function name wrapper)
-        if let result = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let returnedDeviceId = result["register_parent_device"] as? String {
-            print("[SupabaseManager] Successfully registered parent device")
-            return returnedDeviceId
-        }
-        
-        // If that fails, try to parse as plain string (direct UUID return)
-        if let responseString = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) {
-            print("[SupabaseManager] Successfully registered parent device")
-            return responseString
-        }
-        
-        throw NSError(domain: "SupabaseManager", code: 500, userInfo: [NSLocalizedDescriptionKey: "Invalid response format from register_parent_device"])
-    }
-    
-    // Get family summary (all children for a parent)
-    func getFamilySummary() async throws -> [SupabaseFamilySummary] {
-        await restoreSessionFromAppGroup()
-        guard let userId = client.auth.currentUser?.id.uuidString else {
-            throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
-        }
-        
-        let response = try await client
-            .rpc("get_family_summary", params: ["p_user_id": userId] as [String: String])
-            .execute()
-        
-        let data = response.data
-        return try JSONDecoder().decode([SupabaseFamilySummary].self, from: data)
-    }
-    
-    // Get all children for a parent
-    func getChildrenForParent() async throws -> [SupabaseChildDevice] {
-        await restoreSessionFromAppGroup()
-        guard let userId = client.auth.currentUser?.id.uuidString else {
-            throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
-        }
-        
-        let response = try await client
-            .rpc("get_children_for_parent", params: ["p_user_id": userId] as [String: String])
-            .execute()
-        
-        let data = response.data
-        return try JSONDecoder().decode([SupabaseChildDevice].self, from: data)
-    }
-    
-    // Get child-specific statistics
-    func getChildStatistics(childDeviceId: String, dateRange: DateRange) async throws -> [SupabaseUsageStatistics] {
-        await restoreSessionFromAppGroup()
-        guard let userId = client.auth.currentUser?.id.uuidString else {
-            throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
-        }
-        
-        let (startDate, endDate) = getDateRangeBounds(dateRange)
-        
-        let response = try await client
-            .rpc("get_child_statistics", params: [
-                "p_user_id": userId,
-                "p_child_device_id": childDeviceId,
-                "p_start_date": ISO8601DateFormatter().string(from: startDate),
-                "p_end_date": ISO8601DateFormatter().string(from: endDate)
-            ] as [String: String])
-            .execute()
-        
-        let data = response.data
-        return try JSONDecoder().decode([SupabaseUsageStatistics].self, from: data)
-    }
-    
-    // Link parent and child devices
-    func linkParentChildDevices(parentDeviceId: String, childDeviceId: String) async throws -> String {
-        await restoreSessionFromAppGroup()
-        guard let userId = client.auth.currentUser?.id.uuidString else {
-            throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
-        }
-        
-        // Ensure userId is a valid UUID format
-        guard let uuid = UUID(uuidString: userId) else {
-            throw NSError(domain: "SupabaseManager", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid user ID format"])
-        }
-        
-        let response = try await client
-            .rpc("link_parent_child_devices", params: [
-                "p_user_account_id": uuid.uuidString,
-                "p_parent_device_id": parentDeviceId,
-                "p_child_device_id": childDeviceId
-            ] as [String: String])
-            .execute()
-        
-        let data = response.data
-        print("[SupabaseManager] Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
-        
-        // Try to parse as JSON object first (for function name wrapper)
-        if let result = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let linkId = result["link_parent_child_devices"] as? String {
-            print("[SupabaseManager] Successfully linked parent and child devices")
-            return linkId
-        }
-        
-        // If that fails, try to parse as plain string (direct UUID return)
-        if let responseString = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) {
-            print("[SupabaseManager] Successfully linked parent and child devices")
-            return responseString
-        }
-        
-        throw NSError(domain: "SupabaseManager", code: 500, userInfo: [NSLocalizedDescriptionKey: "Invalid response format from link_parent_child_devices"])
-    }
-    
-    // Test database connection and function call
-    func testDatabaseConnection() async throws -> String {
-        await restoreSessionFromAppGroup()
-        guard let userId = client.auth.currentUser?.id.uuidString else {
-            throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
-        }
-        
-        print("[SupabaseManager] Testing database connection with user ID: \(userId)")
-        
-        // Test a simple query to verify connection
-        _ = try await client
-            .from("devices")
-            .select("count")
-            .limit(1)
-            .execute()
-        
-        print("[SupabaseManager] Database connection test successful")
-        return "Connection OK"
-    }
-    
-    // Helper method to get child name for a device
-    private func getChildNameForDevice(deviceId: String) async throws -> String? {
-        await restoreSessionFromAppGroup()
-        guard let userId = client.auth.currentUser?.id.uuidString else {
-            throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
-        }
-        
-        let response = try await client
-            .from("devices")
-            .select("child_name")
-            .eq("device_id", value: deviceId)
-            .eq("user_account_id", value: userId)
-            .single()
-            .execute()
-        
-        let data = response.data
-        let result = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        return result?["child_name"] as? String
     }
 }

@@ -37,11 +37,17 @@ class UsageStatisticsViewModel: ObservableObject {
         isLoading = true
         
         Task {
-            switch dataSource {
-            case .local:
+            do {
+                switch dataSource {
+                case .local:
+                    await loadLocalStatistics()
+                case .remote:
+                    try! await loadRemoteStatistics()
+                }
+            } catch {
+                print("[UsageStatisticsViewModel] Failed to load statistics: \(error)")
+                // Fallback to local data
                 await loadLocalStatistics()
-            case .remote:
-                await loadRemoteStatistics()
             }
         }
     }
@@ -71,7 +77,7 @@ class UsageStatisticsViewModel: ObservableObject {
     }
     
     @MainActor
-    private func loadRemoteStatistics() async {
+    private func loadRemoteStatistics() async throws {
         // For now, skip remote loading until we have proper ApplicationToken handling
         // This will be implemented in future phases
         print("[UsageStatisticsViewModel] Remote loading not yet implemented - falling back to local data")

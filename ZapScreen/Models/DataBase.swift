@@ -11,7 +11,7 @@ import ManagedSettings
 // MARK: - Usage Statistics Models
 
 struct UsageRecord: Codable, Identifiable {
-    let id: UUID
+    let id = UUID()
     let appName: String
     let applicationToken: ApplicationToken
     let approvedDate: Date
@@ -19,7 +19,6 @@ struct UsageRecord: Codable, Identifiable {
     let requestId: String
     
     init(appName: String, applicationToken: ApplicationToken, durationMinutes: Int, requestId: String? = nil) {
-        self.id = UUID()
         self.appName = appName
         self.applicationToken = applicationToken
         self.approvedDate = Date()
@@ -29,7 +28,7 @@ struct UsageRecord: Codable, Identifiable {
 }
 
 struct UsageStatistics: Codable, Identifiable {
-    let id: UUID
+    let id = UUID()
     let appName: String
     let applicationToken: ApplicationToken
     var totalRequestsApproved: Int
@@ -38,7 +37,6 @@ struct UsageStatistics: Codable, Identifiable {
     var usageRecords: [UsageRecord]
     
     init(appName: String, applicationToken: ApplicationToken) {
-        self.id = UUID()
         self.appName = appName
         self.applicationToken = applicationToken
         self.totalRequestsApproved = 0
@@ -159,7 +157,6 @@ struct SupabaseUsageStatistics: Codable, Identifiable {
     let user_account_id: String
     let child_device_id: String
     let child_device_name: String
-    let child_name: String? // New: child name for multi-child support
     let app_name: String
     let bundle_identifier: String
     let total_requests_approved: Int
@@ -179,7 +176,6 @@ struct SupabaseUsageRecord: Codable, Identifiable {
     let user_account_id: String
     let child_device_id: String
     let child_device_name: String
-    let child_name: String? // New: child name for multi-child support
     let app_name: String
     let bundle_identifier: String
     let approved_date: String
@@ -196,7 +192,6 @@ struct SupabaseUsageStatisticsInsert: Encodable {
     let user_account_id: String
     let child_device_id: String
     let child_device_name: String
-    let child_name: String? // New: child name for multi-child support
     let app_name: String
     let bundle_identifier: String
     let total_requests_approved: Int
@@ -208,7 +203,6 @@ struct SupabaseUsageRecordInsert: Encodable {
     let user_account_id: String
     let child_device_id: String
     let child_device_name: String
-    let child_name: String? // New: child name for multi-child support
     let app_name: String
     let bundle_identifier: String
     let approved_date: String

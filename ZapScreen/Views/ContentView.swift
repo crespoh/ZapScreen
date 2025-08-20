@@ -12,11 +12,6 @@ struct ContentView: View {
     @AppStorage("zapShowRemoteLock", store: UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")) private var zapShowRemoteLock: Bool = false
     @AppStorage("debugModeEnabled", store: UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")) private var debugModeEnabled = false
     
-    // Check if current device is a parent device
-    private var isParentDevice: Bool {
-        selectedRole == UserRole.parent.rawValue
-    }
-    
     var body: some View {
 
         NavigationStack {
@@ -31,24 +26,10 @@ struct ContentView: View {
                         Label("Devices", systemImage: "iphone")
                     }
                 
-                        UsageStatisticsView()
-            .tabItem {
-                Label("Statistics", systemImage: "chart.bar")
-            }
-        
-        // Show Family Dashboard only for parent devices
-        if isParentDevice {
-            FamilyDashboardView()
-                .tabItem {
-                    Label("Family", systemImage: "person.3")
-                }
-        } else {
-            // Show QR Code for child devices
-            ChildQRCodeView()
-                .tabItem {
-                    Label("Pair Device", systemImage: "qrcode")
-                }
-        }
+                UsageStatisticsView()
+                    .tabItem {
+                        Label("Statistics", systemImage: "chart.bar")
+                    }
                 
                 // Debug tabs - only shown when debug mode is enabled
                 if debugModeEnabled {
