@@ -27,8 +27,15 @@ struct UsageStatisticsView: View {
             .navigationTitle("Usage Statistics")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Filter") {
-                        showingDateRangePicker = true
+                    HStack(spacing: 12) {
+                        Button("Export") {
+                            exportUsageData()
+                        }
+                        .disabled(viewModel.usageStatistics.isEmpty)
+                        
+                        Button("Filter") {
+                            showingDateRangePicker = true
+                        }
                     }
                 }
             }
@@ -46,9 +53,19 @@ struct UsageStatisticsView: View {
     
     private var summaryHeader: some View {
         VStack(spacing: 12) {
-            Text(viewModel.selectedDateRange.displayName)
-                .font(.headline)
-                .foregroundColor(.primary)
+            HStack {
+                Text(viewModel.selectedDateRange.displayName)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                
+                Spacer()
+                
+                if !viewModel.usageStatistics.isEmpty {
+                    Text(viewModel.summaryText)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
             
             HStack(spacing: 20) {
                 VStack {
@@ -110,7 +127,15 @@ struct UsageStatisticsView: View {
     
     private var statisticsList: some View {
         List {
-            if viewModel.usageStatistics.isEmpty {
+            if viewModel.isLoading {
+                HStack {
+                    Spacer()
+                    ProgressView("Loading...")
+                        .padding()
+                    Spacer()
+                }
+                .listRowBackground(Color.clear)
+            } else if viewModel.usageStatistics.isEmpty {
                 emptyStateView
             } else {
                 ForEach(viewModel.usageStatistics) { stat in
@@ -132,21 +157,33 @@ struct UsageStatisticsView: View {
     
     private var emptyStateView: some View {
         VStack(spacing: 16) {
-            Image(systemName: "chart.bar.doc.horizontal")
+            Image(systemName: viewModel.selectedDateRange == .allTime ? "chart.bar.doc.horizontal" : "calendar.badge.exclamationmark")
                 .font(.system(size: 48))
                 .foregroundColor(.gray)
             
-            Text("No Usage Statistics")
+            Text(viewModel.selectedDateRange == .allTime ? "No Usage Statistics" : "No Data for Selected Period")
                 .font(.headline)
                 .foregroundColor(.gray)
             
-            Text("Statistics will appear here once apps have been approved for unshielding")
+            Text(viewModel.selectedDateRange == .allTime ? 
+                 "Statistics will appear here once apps have been approved for unshielding" :
+                 "Try selecting a different time period or check if apps were used during this time")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .listRowBackground(Color.clear)
+    }
+    
+    private func exportUsageData() {
+        let csvData = viewModel.exportUsageData()
+        let activityVC = UIActivityViewController(activityItems: [csvData], applicationActivities: nil)
+        
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first {
+            window.rootViewController?.present(activityVC, animated: true)
+        }
     }
     
     private func enhancedStatisticsRow(_ stat: UsageStatistics) -> some View {
