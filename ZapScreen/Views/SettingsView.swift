@@ -96,10 +96,55 @@ struct SettingsView: View {
                 }
                 
                         // Device Management
-        Section("Device Management") {
-            NavigationLink("Scan Child Device QR Code", destination: QRCodeScannerView())
-                .foregroundColor(.green)
-        }
+                Section("Device Management") {
+                    NavigationLink("Scan Child Device QR Code", destination: QRCodeScannerView())
+                        .foregroundColor(.green)
+                }
+                
+                // Notifications
+                Section("Notifications") {
+                    HStack {
+                        Image(systemName: "bell.circle")
+                            .foregroundColor(.purple)
+                        Text("Smart Notifications")
+                        Spacer()
+                        if ShieldNotificationService.shared.isNotificationsEnabled {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                        } else {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.red)
+                        }
+                    }
+                    
+                    NavigationLink("Notification Preferences") {
+                        NotificationPreferencesView()
+                    }
+                    
+                    Button("Request Permissions") {
+                        Task {
+                            await ShieldNotificationService.shared.requestNotificationPermissions()
+                        }
+                    }
+                    .foregroundColor(.blue)
+                    .disabled(ShieldNotificationService.shared.isNotificationsEnabled)
+                }
+                
+                // Performance
+                Section("Performance") {
+                    HStack {
+                        Image(systemName: "speedometer")
+                            .foregroundColor(.orange)
+                        Text("Cache Management")
+                        Spacer()
+                        NavigationLink("", destination: CacheManagementView())
+                            .opacity(0)
+                    }
+                    
+                    NavigationLink("Performance Settings") {
+                        PerformanceSettingsView()
+                    }
+                }
                 
                 // App Information
                 Section("App Information") {

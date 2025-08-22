@@ -180,7 +180,8 @@ struct SupabaseShieldSettingInsert: Encodable {
         self.child_device_id = childDeviceId
         self.child_name = childName
         self.app_name = applicationProfile.applicationName
-        self.bundle_identifier = String(applicationProfile.applicationToken.hashValue)
+        // Use app name as bundle identifier for better stability
+        self.bundle_identifier = applicationProfile.applicationName.lowercased().replacingOccurrences(of: " ", with: "_")
         self.is_shielded = true
         self.shield_type = "permanent"
         self.unlock_expiry = nil
@@ -195,7 +196,8 @@ struct SupabaseShieldSettingInsert: Encodable {
         self.child_device_id = childDeviceId
         self.child_name = childName
         self.app_name = unshieldedApp.applicationName
-        self.bundle_identifier = String(unshieldedApp.shieldedAppToken.hashValue)
+        // Use app name as bundle identifier for better stability
+        self.bundle_identifier = unshieldedApp.applicationName.lowercased().replacingOccurrences(of: " ", with: "_")
         self.is_shielded = false
         self.shield_type = "temporary"
         

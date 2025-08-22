@@ -77,6 +77,16 @@ class ShieldManager: ObservableObject {
         store.shield.applications?.insert(application.applicationToken)
         print("[ShieldManager] Shield applied to: \(application.applicationName)")
         
+        // Send notification
+        if let childName = getCurrentChildName() {
+            // TODO: Re-enable when notification service is properly imported
+            // ShieldNotificationService.shared.notifyAppShielded(
+            //     appName: application.applicationName,
+            //     childName: childName
+            // )
+            print("[ShieldManager] Would send notification: App \(application.applicationName) shielded for \(childName)")
+        }
+        
         // Sync to Supabase
         Task {
             await database.syncShieldedApplicationsToSupabase()
@@ -91,6 +101,16 @@ class ShieldManager: ObservableObject {
         // Remove shield immediately
         store.shield.applications?.remove(application.applicationToken)
         
+        // Send notification
+        if let childName = getCurrentChildName() {
+            // TODO: Re-enable when notification service is properly imported
+            // ShieldNotificationService.shared.notifyShieldRemoved(
+            //     appName: application.applicationName,
+            //     childName: childName
+            // )
+            print("[ShieldManager] Would send notification: App \(application.applicationName) shield removed for \(childName)")
+        }
+        
         // Delete from Supabase first, then sync remaining apps
         Task {
             // Get current device info for deletion
@@ -99,8 +119,8 @@ class ShieldManager: ObservableObject {
                 
                 // Delete from Supabase by app bundle identifier
                 do {
-                    try await SupabaseManager.shared.deleteShieldSettingByApp(
-                        bundleIdentifier: String(application.applicationToken.hashValue),
+                    _ = try await SupabaseManager.shared.deleteShieldSettingByApp(
+                        bundleIdentifier: application.applicationName.lowercased().replacingOccurrences(of: " ", with: "_"),
                         childDeviceId: deviceId
                     )
                     print("[ShieldManager] Successfully deleted shield setting for \(application.applicationName) from Supabase")
@@ -115,6 +135,13 @@ class ShieldManager: ObservableObject {
         
         // Refresh data to trigger UI update
         refreshData()
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func getCurrentChildName() -> String? {
+        let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
+        return groupDefaults?.string(forKey: "DeviceName")
     }
     
     // MARK: - Unshield Management
@@ -162,6 +189,18 @@ class ShieldManager: ObservableObject {
         
         // Remove shield temporarily from store only
         store.shield.applications?.remove(application.applicationToken)
+        
+        // Send notification
+        if let childName = getCurrentChildName() {
+            let durationText = "\(durationMinutes) minutes"
+            // TODO: Re-enable when notification service is properly imported
+            // ShieldNotificationService.shared.notifyAppUnshielded(
+            //     appName: application.applicationName,
+            //     childName: childName,
+            //     duration: durationText
+            // )
+            print("[ShieldManager] Would send notification: App \(application.applicationName) unshielded for \(durationText) for \(childName)")
+        }
         
         // Start monitoring for expiry
         startUnshieldMonitoring(for: unshieldedApp)
