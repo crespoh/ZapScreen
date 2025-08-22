@@ -1118,11 +1118,14 @@ class SupabaseManager {
             throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
         }
         
+        // Normalize user ID to lowercase to match database storage
+        let normalizedUserId = userId.lowercased()
         print("[SupabaseManager] Getting shield settings for child device: \(childDeviceId)")
+        print("[SupabaseManager] Normalized User ID: \(normalizedUserId)")
         
         let response = try await client
             .rpc("get_child_shield_settings", params: [
-                "p_user_account_id": userId,
+                "p_user_account_id": normalizedUserId,
                 "p_child_device_id": childDeviceId
             ] as [String: String])
             .execute()
@@ -1143,11 +1146,14 @@ class SupabaseManager {
             throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
         }
         
+        // Normalize user ID to lowercase to match database storage
+        let normalizedUserId = userId.lowercased()
         print("[SupabaseManager] Getting all children shield settings for user: \(userId)")
+        print("[SupabaseManager] Normalized User ID: \(normalizedUserId)")
         
         let response = try await client
             .rpc("get_all_children_shield_settings", params: [
-                "p_user_account_id": userId
+                "p_user_account_id": normalizedUserId
             ] as [String: String])
             .execute()
         
@@ -1158,7 +1164,7 @@ class SupabaseManager {
         print("[SupabaseManager] All shield settings response: \(responseString)")
         
         let settings = try JSONDecoder().decode([SupabaseShieldSetting].self, from: data)
-        print("[SupabaseManager] Retrieved \(settings.count) total shield settings for user: \(userId)")
+        print("[SupabaseManager] Retrieved \(settings.count) total shield settings for user: \(normalizedUserId)")
         
         return settings
     }

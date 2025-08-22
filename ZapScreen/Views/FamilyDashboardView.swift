@@ -65,8 +65,14 @@ struct FamilyDashboardView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Select Child") {
-                        showingChildSelector = true
+                    HStack(spacing: 16) {
+                        NavigationLink("Shield Settings") {
+                            ChildShieldSettingsView()
+                        }
+                        
+                        Button("Select Child") {
+                            showingChildSelector = true
+                        }
                     }
                 }
             }
