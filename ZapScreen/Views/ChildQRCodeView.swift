@@ -1,8 +1,12 @@
 import SwiftUI
 import CoreImage.CIFilterBuiltins
+import CryptoKit
 
 struct ChildQRCodeView: View {
     @StateObject private var viewModel = ChildQRCodeViewModel()
+    @StateObject private var passcodeManager = PasscodeManager.shared
+    @State private var showingPasscodeSetup = false
+    @State private var passcode = ""
     
     var body: some View {
         NavigationView {
@@ -19,13 +23,63 @@ struct ChildQRCodeView: View {
                             .font(.title2)
                             .fontWeight(.semibold)
                         
-                        Text("Show this QR code to your parent to pair devices")
+                        Text("Set passcode and show QR code to your parent")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                     }
                     .padding(.top, 10)
                     .padding(.horizontal)
+                
+                // Passcode Setup Section
+                if !passcodeManager.isPasscodeEnabled {
+                    VStack(spacing: 16) {
+                        VStack(spacing: 8) {
+                            Image(systemName: "lock.shield")
+                                .font(.system(size: 32))
+                                .foregroundColor(.blue)
+                            
+                            Text("Set Shield Management Passcode")
+                                .font(.headline)
+                            
+                            Text("This passcode will protect shield settings from unauthorized access")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.blue.opacity(0.1))
+                        )
+                        
+                        Button("Set Passcode") {
+                            showingPasscodeSetup = true
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    .padding(.horizontal)
+                } else {
+                    // Passcode Status
+                    VStack(spacing: 8) {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                            Text("Passcode Set")
+                                .font(.headline)
+                        }
+                        
+                        Text("Shield settings are now protected")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.green.opacity(0.1))
+                    )
+                    .padding(.horizontal)
+                }
                 
                 // QR Code Display
                 VStack(spacing: 16) {
@@ -95,9 +149,18 @@ struct ChildQRCodeView: View {
                 .padding(.horizontal)
                 .padding(.bottom, 100) // Increased padding to account for tab bar
                 }
-                }
                 .frame(minHeight: geometry.size.height)
             }
+            .sheet(isPresented: $showingPasscodeSetup) {
+                PasscodeSetupView(passcode: $passcode)
+                    .onDisappear {
+                        if passcodeManager.isPasscodeEnabled {
+                            // Passcode was set successfully, regenerate QR code with passcode hash
+                            viewModel.generateQRCodeWithPasscode()
+                        }
+                    }
+            }
+        }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -109,11 +172,10 @@ struct ChildQRCodeView: View {
             .safeAreaInset(edge: .bottom) {
                 Color.clear.frame(height: 0)
             }
-        }
-
-        .onAppear {
-            viewModel.loadDeviceInfo()
-            viewModel.generateQRCode()
+            .onAppear {
+                viewModel.loadDeviceInfo()
+                viewModel.generateQRCode()
+            }
         }
     }
     
@@ -150,6 +212,10 @@ class ChildQRCodeViewModel: ObservableObject {
     }
     
     func generateQRCode() {
+        generateQRCodeWithPasscode()
+    }
+    
+    func generateQRCodeWithPasscode() {
         // Get device token from UserDefaults if available
         let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
         let deviceToken = groupDefaults?.string(forKey: "DeviceToken")
@@ -159,11 +225,20 @@ class ChildQRCodeViewModel: ObservableObject {
             print("[ChildQRCodeViewModel] Device token: \(String(token.prefix(20)))...")
         }
         
+        // Get passcode hash if available
+        var passcodeHash: String? = nil
+        if let data = UserDefaults.standard.data(forKey: "PasscodeSettings"),
+           let settings = try? JSONDecoder().decode(PasscodeSettings.self, from: data) {
+            passcodeHash = settings.hashedPasscode
+            print("[ChildQRCodeViewModel] Passcode hash available: \(passcodeHash != nil)")
+        }
+        
         let deviceInfo = DeviceQRInfo(
             deviceName: deviceName,
             deviceId: deviceId,
             timestamp: Date(),
-            deviceToken: deviceToken
+            deviceToken: deviceToken,
+            passcodeHash: passcodeHash
         )
         
         guard let jsonData = try? JSONEncoder().encode(deviceInfo),
@@ -215,6 +290,7 @@ struct DeviceQRInfo: Codable {
     let deviceId: String
     let timestamp: Date
     let deviceToken: String? // Optional device token for push notifications
+    let passcodeHash: String? // Hash of the passcode for verification
 }
 
 // MARK: - Preview

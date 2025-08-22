@@ -3,6 +3,7 @@ import ManagedSettings
 import Supabase
 import SwiftUI
 import os.log
+import CryptoKit
 
 // MARK: - Supabase Table Structs
 
@@ -1210,5 +1211,140 @@ class SupabaseManager {
         
         print("[SupabaseManager] Successfully deleted shield setting for app bundle: \(bundleIdentifier)")
         return true
+    }
+    
+    // MARK: - Passcode Management
+    
+    /// Sync child device passcode to Supabase for parent access
+    func syncChildPasscode(passcode: String, deviceId: String) async throws {
+        await restoreSessionFromAppGroup()
+        guard let userId = client.auth.currentUser?.id.uuidString else {
+            throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
+        }
+        
+        print("[SupabaseManager] Syncing child passcode for device: \(deviceId)")
+        
+        // Hash the passcode before storing
+        let hashedPasscode = hashPasscode(passcode)
+        
+        let response = try await client
+            .from("child_passcodes")
+            .upsert([
+                "user_account_id": userId,
+                "child_device_id": deviceId,
+                "hashed_passcode": hashedPasscode,
+                "created_at": ISO8601DateFormatter().string(from: Date()),
+                "updated_at": ISO8601DateFormatter().string(from: Date())
+            ])
+            .execute()
+        
+        print("[SupabaseManager] Successfully synced child passcode for device: \(deviceId)")
+    }
+    
+    /// Get the latest passcode for a child device from Supabase
+    func getLatestChildPasscode(deviceId: String) async throws -> String? {
+        await restoreSessionFromAppGroup()
+        guard let userId = client.auth.currentUser?.id.uuidString else {
+            throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
+        }
+        
+        print("[SupabaseManager] Getting latest passcode for device: \(deviceId)")
+        
+        let response = try await client
+            .from("child_passcodes")
+            .select()
+            .eq("user_account_id", value: userId)
+            .eq("child_device_id", value: deviceId)
+            .order("updated_at", ascending: false)
+            .limit(1)
+            .execute()
+        
+        let data = response.data
+        print("[SupabaseManager] Passcode response: \(String(data: data, encoding: .utf8) ?? "nil")")
+        
+        let passcodes = try JSONDecoder().decode([ChildPasscode].self, from: data)
+        
+        if let latestPasscode = passcodes.first {
+            print("[SupabaseManager] Retrieved latest passcode for device: \(deviceId)")
+            return latestPasscode.hashedPasscode
+        } else {
+            print("[SupabaseManager] No passcode found for device: \(deviceId)")
+            return nil
+        }
+    }
+    
+    /// Update child device passcode (called by parent)
+    func updateChildPasscode(newPasscode: String, childDeviceId: String) async throws {
+        await restoreSessionFromAppGroup()
+        guard let userId = client.auth.currentUser?.id.uuidString else {
+            throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
+        }
+        
+        print("[SupabaseManager] Updating child passcode for device: \(childDeviceId)")
+        
+        // Hash the passcode before storing
+        let hashedPasscode = hashPasscode(newPasscode)
+        
+        let response = try await client
+            .from("child_passcodes")
+            .upsert([
+                "user_account_id": userId,
+                "child_device_id": childDeviceId,
+                "hashed_passcode": hashedPasscode,
+                "created_at": ISO8601DateFormatter().string(from: Date()),
+                "updated_at": ISO8601DateFormatter().string(from: Date())
+            ])
+            .execute()
+        
+        print("[SupabaseManager] Successfully updated child passcode for device: \(childDeviceId)")
+    }
+    
+    /// Reset child device passcode (remove from Supabase)
+    func resetChildPasscode(deviceId: String) async throws {
+        await restoreSessionFromAppGroup()
+        guard let userId = client.auth.currentUser?.id.uuidString else {
+            throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
+        }
+        
+        print("[SupabaseManager] Resetting child passcode for device: \(deviceId)")
+        
+        _ = try await client
+            .from("child_passcodes")
+            .delete()
+            .eq("user_account_id", value: userId)
+            .eq("child_device_id", value: deviceId)
+            .execute()
+        
+        print("[SupabaseManager] Successfully reset child passcode for device: \(deviceId)")
+    }
+    
+    // MARK: - Utility Methods
+    
+    /// Hash a passcode using SHA256
+    private func hashPasscode(_ passcode: String) -> String {
+        let data = passcode.data(using: .utf8)!
+        let hash = SHA256.hash(data: data)
+        return hash.compactMap { String(format: "%02x", $0) }.joined()
+    }
+}
+
+// MARK: - Supporting Types
+
+/// Child passcode model for Supabase
+struct ChildPasscode: Codable {
+    let id: String
+    let userAccountId: String
+    let childDeviceId: String
+    let hashedPasscode: String
+    let createdAt: String
+    let updatedAt: String
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userAccountId = "user_account_id"
+        case childDeviceId = "child_device_id"
+        case hashedPasscode = "hashed_passcode"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
     }
 }

@@ -16,6 +16,7 @@ struct ShieldCustomView: View {
     @EnvironmentObject var appIconStore: AppIconStore
     @State var selection = FamilyActivitySelection()
     @StateObject private var shieldManager = ShieldManager.shared
+    @StateObject private var passcodeManager = PasscodeManager.shared
     @State private var errorMessage: String? = nil
     @State private var showNamePrompt = false
     @State private var enteredAppName: String = ""
@@ -27,30 +28,38 @@ struct ShieldCustomView: View {
     }
 
     var body: some View {
-        VStack {
-            HStack {
-                Button("Cancel") {
-                    dismiss()
-                }
-                Spacer()
-                Button("Save") {
-                    // Only show the name prompt if the selection is valid (exactly one app, no other types).
-                    // The errorMessage state is updated by the .onChange modifier.
-                    // If errorMessage is nil, it means the selection is valid.
-                    if errorMessage == nil {
-                        showNamePrompt = true
+        Group {
+            if passcodeManager.isPasscodeEnabled && passcodeManager.isLocked {
+                // Show passcode prompt if device is locked
+                PasscodePromptView()
+            } else {
+                // Show normal shield management UI
+                VStack {
+                    HStack {
+                        Button("Cancel") {
+                            dismiss()
+                        }
+                        Spacer()
+                        Button("Save") {
+                            // Only show the name prompt if the selection is valid (exactly one app, no other types).
+                            // The errorMessage state is updated by the .onChange modifier.
+                            // If errorMessage is nil, it means the selection is valid.
+                            if errorMessage == nil {
+                                showNamePrompt = true
+                            }
+                            // If errorMessage is not nil, the error is already displayed via Text(errorMessage ?? "")
+                            // and this button action effectively does nothing, preventing the sheet from appearing.
+                        }
+                        .disabled(selection.applicationTokens.isEmpty || errorMessage != nil)
                     }
-                    // If errorMessage is not nil, the error is already displayed via Text(errorMessage ?? "")
-                    // and this button action effectively does nothing, preventing the sheet from appearing.
-                }
-                .disabled(selection.applicationTokens.isEmpty || errorMessage != nil)
-            }
-            .padding()
+                    .padding()
 
-            FamilyActivityPicker(selection: $selection)
-            
-            Text(errorMessage ?? "")
-            Spacer()
+                    FamilyActivityPicker(selection: $selection)
+                    
+                    Text(errorMessage ?? "")
+                    Spacer()
+                }
+            }
         }
         .navigationBarBackButtonHidden(true)
         .onAppear() {
