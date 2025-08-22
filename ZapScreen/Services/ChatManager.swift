@@ -101,8 +101,8 @@ class ChatManager: ObservableObject {
             let response = try await SupabaseManager.shared.client
                 .rpc("get_chat_messages", params: [
                     "p_session_id": sessionId.uuidString,
-                    "p_limit": limit,
-                    "p_offset": 0
+                    "p_limit": String(limit),
+                    "p_offset": "0"
                 ])
                 .execute()
             
@@ -184,7 +184,7 @@ class ChatManager: ObservableObject {
                 "child_name": unlockRequest.childName,
                 "app_name": unlockRequest.appName,
                 "app_bundle_id": unlockRequest.appBundleId,
-                "requested_duration": unlockRequest.requestedDuration,
+                "requested_duration": String(unlockRequest.requestedDuration),
                 "request_message": unlockRequest.requestMessage
             ])
             .execute()
@@ -215,7 +215,7 @@ class ChatManager: ObservableObject {
                 "content": chatMessage.content,
                 "unlock_request_id": chatMessage.unlockRequestId,
                 "app_name": chatMessage.appName,
-                "requested_duration": chatMessage.requestedDuration,
+                "requested_duration": chatMessage.requestedDuration.map(String.init),
                 "unlock_status": chatMessage.unlockStatus?.rawValue
             ])
             .execute()
@@ -267,7 +267,7 @@ class ChatManager: ObservableObject {
     func respondToUnlockRequest(requestId: UUID, status: UnlockRequestStatus, response: String?) async throws {
         await restoreSessionFromAppGroup()
         
-        let responseResult = try await SupabaseManager.shared.client
+        _ = try await SupabaseManager.shared.client
             .rpc("update_unlock_request_status", params: [
                 "p_request_id": requestId.uuidString,
                 "p_status": status.rawValue,

@@ -138,6 +138,21 @@ struct ChatMessage: Identifiable, Codable {
         formatter.dateStyle = .medium
         return formatter.string(from: timestamp)
     }
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case senderId = "sender_id"
+        case senderName = "sender_name"
+        case messageType = "message_type"
+        case content
+        case timestamp
+        case isRead = "is_read"
+        case unlockRequestId = "unlock_request_id"
+        case appName = "app_name"
+        case requestedDuration = "requested_duration"
+        case unlockStatus = "unlock_status"
+        case parentResponse = "parent_response"
+    }
 }
 
 // MARK: - Unlock Request
@@ -196,6 +211,20 @@ struct UnlockRequest: Identifiable, Codable {
         formatter.dateStyle = .short
         return formatter.string(from: timestamp)
     }
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case childDeviceId = "child_device_id"
+        case childName = "child_name"
+        case appName = "app_name"
+        case appBundleId = "app_bundle_id"
+        case requestedDuration = "requested_duration"
+        case requestMessage = "request_message"
+        case timestamp
+        case status
+        case parentResponse = "parent_response"
+        case respondedAt = "responded_at"
+    }
 }
 
 // MARK: - Chat Session
@@ -225,6 +254,16 @@ struct ChatSession: Identifiable, Codable {
         self.lastMessageAt = lastMessageAt
         self.unreadCount = unreadCount
         self.isActive = isActive
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case parentDeviceId = "parent_device_id"
+        case childDeviceId = "child_device_id"
+        case childName = "child_name"
+        case lastMessageAt = "last_message_at"
+        case unreadCount = "unread_count"
+        case isActive = "is_active"
     }
 }
 

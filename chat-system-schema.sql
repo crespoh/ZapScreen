@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS public.chat_messages (
     -- For unlock request messages
     unlock_request_id TEXT,
     app_name TEXT,
-    requested_duration INTEGER,
+    requested_duration TEXT,
     unlock_status TEXT CHECK (unlock_status IN ('pending', 'approved', 'denied', 'expired')),
     parent_response TEXT,
     
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS public.unlock_requests (
     child_name TEXT NOT NULL,
     app_name TEXT NOT NULL,
     app_bundle_id TEXT NOT NULL,
-    requested_duration INTEGER NOT NULL,
+    requested_duration TEXT NOT NULL,
     request_message TEXT,
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'denied', 'expired')),
@@ -162,8 +162,8 @@ CREATE TRIGGER update_unlock_requests_updated_at_trigger
 -- Function to get chat messages for a session
 CREATE OR REPLACE FUNCTION get_chat_messages(
     p_session_id UUID,
-    p_limit INTEGER DEFAULT 50,
-    p_offset INTEGER DEFAULT 0
+    p_limit TEXT DEFAULT '50',
+    p_offset TEXT DEFAULT '0'
 )
 RETURNS TABLE(
     id UUID,
@@ -172,11 +172,11 @@ RETURNS TABLE(
     sender_name TEXT,
     message_type TEXT,
     content TEXT,
-    timestamp TIMESTAMP WITH TIME ZONE,
+    message_timestamp TIMESTAMP WITH TIME ZONE,
     is_read BOOLEAN,
     unlock_request_id TEXT,
     app_name TEXT,
-    requested_duration INTEGER,
+    requested_duration TEXT,
     unlock_status TEXT,
     parent_response TEXT
 ) AS $$
@@ -189,7 +189,7 @@ BEGIN
         cm.sender_name,
         cm.message_type,
         cm.content,
-        cm.timestamp,
+        cm.timestamp as message_timestamp,
         cm.is_read,
         cm.unlock_request_id,
         cm.app_name,
@@ -199,8 +199,8 @@ BEGIN
     FROM public.chat_messages cm
     WHERE cm.session_id = p_session_id
     ORDER BY cm.timestamp DESC
-    LIMIT p_limit
-    OFFSET p_offset;
+    LIMIT p_limit::INTEGER
+    OFFSET p_offset::INTEGER;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -214,9 +214,9 @@ RETURNS TABLE(
     child_name TEXT,
     app_name TEXT,
     app_bundle_id TEXT,
-    requested_duration INTEGER,
+    requested_duration TEXT,
     request_message TEXT,
-    timestamp TIMESTAMP WITH TIME ZONE,
+    request_timestamp TIMESTAMP WITH TIME ZONE,
     status TEXT,
     parent_response TEXT,
     responded_at TIMESTAMP WITH TIME ZONE
@@ -231,7 +231,7 @@ BEGIN
         ur.app_bundle_id,
         ur.requested_duration,
         ur.request_message,
-        ur.timestamp,
+        ur.timestamp as request_timestamp,
         ur.status,
         ur.parent_response,
         ur.responded_at
@@ -266,7 +266,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 GRANT SELECT, INSERT, UPDATE ON public.chat_sessions TO authenticated;
 GRANT SELECT, INSERT, UPDATE ON public.chat_messages TO authenticated;
 GRANT SELECT, INSERT, UPDATE ON public.unlock_requests TO authenticated;
-GRANT EXECUTE ON FUNCTION get_chat_messages(UUID, INTEGER, INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION get_chat_messages(UUID, TEXT, TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION get_pending_unlock_requests(TEXT) TO authenticated;
 GRANT EXECUTE ON FUNCTION update_unlock_request_status(UUID, TEXT, TEXT) TO authenticated;
 
@@ -274,6 +274,6 @@ GRANT EXECUTE ON FUNCTION update_unlock_request_status(UUID, TEXT, TEXT) TO auth
 COMMENT ON TABLE public.chat_sessions IS 'Stores chat sessions between parents and children';
 COMMENT ON TABLE public.chat_messages IS 'Stores individual chat messages including unlock requests';
 COMMENT ON TABLE public.unlock_requests IS 'Stores app unlock requests from children to parents';
-COMMENT ON FUNCTION get_chat_messages(UUID, INTEGER, INTEGER) IS 'Retrieves chat messages for a session with pagination';
+COMMENT ON FUNCTION get_chat_messages(UUID, TEXT, TEXT) IS 'Retrieves chat messages for a session with pagination';
 COMMENT ON FUNCTION get_pending_unlock_requests(TEXT) IS 'Retrieves pending unlock requests for a parent device';
 COMMENT ON FUNCTION update_unlock_request_status(UUID, TEXT, TEXT) IS 'Updates the status of an unlock request';
