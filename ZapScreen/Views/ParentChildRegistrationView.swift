@@ -214,7 +214,8 @@ struct ParentChildRegistrationView_Previews: PreviewProvider {
                 deviceName: "iPhone 15",
                 deviceId: "12345678-1234-1234-1234-123456789012",
                 timestamp: Date(),
-                deviceToken: nil
+                deviceToken: nil,
+                passcodeHash: nil
             )
         )
     }

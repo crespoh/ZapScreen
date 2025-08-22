@@ -6,6 +6,7 @@ struct QRCodeScannerView: View {
     @StateObject private var viewModel = QRCodeScannerViewModel()
     @Environment(\.dismiss) private var dismiss
     @State private var showingRegistration = false
+    @State private var showingPasscodeConfirmation = false
     @State private var scannedDeviceInfo: DeviceQRInfo?
     
     var body: some View {
@@ -187,6 +188,11 @@ struct QRCodeScannerView: View {
                 ParentChildRegistrationView(deviceInfo: deviceInfo)
             }
         }
+        .sheet(isPresented: $showingPasscodeConfirmation) {
+            if let deviceInfo = scannedDeviceInfo {
+                PasscodeConfirmationView(deviceInfo: deviceInfo)
+            }
+        }
         .onAppear {
             viewModel.requestCameraPermission()
         }
@@ -207,6 +213,15 @@ struct QRCodeScannerView: View {
         
         viewModel.stopScanning()
         scannedDeviceInfo = deviceInfo
+        
+        // Check if the QR code contains passcode hash
+        if deviceInfo.passcodeHash != nil {
+            // Show passcode confirmation if passcode is set
+            showingPasscodeConfirmation = true
+        } else {
+            // Show regular registration if no passcode
+            showingRegistration = true
+        }
     }
 }
 

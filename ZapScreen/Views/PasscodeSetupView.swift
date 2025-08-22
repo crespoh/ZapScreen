@@ -114,6 +114,8 @@ struct PasscodeSetupView: View {
         Task {
             do {
                 try await PasscodeManager.shared.setPasscode(passcode)
+                // Force lock the device immediately after passcode setup
+                PasscodeManager.shared.forceLockDevice()
                 isSettingPasscode = false
             } catch {
                 await MainActor.run {

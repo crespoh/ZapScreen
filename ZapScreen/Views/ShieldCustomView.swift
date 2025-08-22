@@ -31,7 +31,11 @@ struct ShieldCustomView: View {
         Group {
             if passcodeManager.isPasscodeEnabled && passcodeManager.isLocked {
                 // Show passcode prompt if device is locked
-                PasscodePromptView()
+                VStack {
+                    PasscodePromptView()
+                }
+                .navigationTitle("Add Activity")
+                .navigationBarTitleDisplayMode(.inline)
             } else {
                 // Show normal shield management UI
                 VStack {
@@ -63,6 +67,9 @@ struct ShieldCustomView: View {
         }
         .navigationBarBackButtonHidden(true)
         .onAppear() {
+            // Debug: Print current passcode state
+            print("[ShieldCustomView] Passcode enabled: \(passcodeManager.isPasscodeEnabled)")
+            print("[ShieldCustomView] Device locked: \(passcodeManager.isLocked)")
         }
         .onChange(of: selection) { _, newSelection in
             

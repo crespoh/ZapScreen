@@ -18,9 +18,14 @@ class PasscodeManager: ObservableObject {
     private var idleTimer: Timer?
     
     private init() {
-        loadPasscodeSettings()
-        startIdleTimer()
+        _ = loadPasscodeSettings()
         setupAppStateObservers()
+        // Start timer only if passcode is enabled to avoid unnecessary timers
+        if isPasscodeEnabled {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                self?.startIdleTimer()
+            }
+        }
     }
     
     // MARK: - Passcode Management
@@ -32,7 +37,9 @@ class PasscodeManager: ObservableObject {
         
         // Hash the passcode with salt
         let salt = generateSalt()
-        let hashedPasscode = hashPasscode(passcode, salt: salt)
+        guard let hashedPasscode = hashPasscode(passcode, salt: salt) else {
+            throw PasscodeError.invalidFormat
+        }
         
         // Save locally
         let settings = PasscodeSettings(
@@ -48,6 +55,12 @@ class PasscodeManager: ObservableObject {
         savePasscodeSettings(settings)
         isPasscodeEnabled = true
         isLocked = true
+        lastActivity = Date()
+        
+        // Start idle timer now that passcode is enabled
+        DispatchQueue.main.async { [weak self] in
+            self?.startIdleTimer()
+        }
         
         // Start background sync to Supabase
         Task {
@@ -57,6 +70,13 @@ class PasscodeManager: ObservableObject {
         print("[PasscodeManager] Passcode set successfully")
     }
     
+    /// Force lock the device immediately (useful after passcode setup)
+    func forceLockDevice() {
+        isLocked = true
+        lastActivity = Date()
+        print("[PasscodeManager] Device force locked")
+    }
+    
     func validatePasscode(_ passcode: String) -> PasscodeValidationResult {
         // Check if device is locked out
         if let lockoutUntil = lockoutUntil, Date() < lockoutUntil {
@@ -64,8 +84,11 @@ class PasscodeManager: ObservableObject {
         }
         
         // Check if passcode is correct
-        guard let settings = loadPasscodeSettings(),
-              let hashedInput = hashPasscode(passcode, salt: settings.salt),
+        guard let settings = loadPasscodeSettings() else {
+            return .invalid(remainingAttempts)
+        }
+        
+        guard let hashedInput = hashPasscode(passcode, salt: settings.salt),
               hashedInput == settings.hashedPasscode else {
             
             // Increment failed attempts
@@ -101,6 +124,7 @@ class PasscodeManager: ObservableObject {
     
     func lockDevice() {
         isLocked = true
+        lastActivity = Date()
         resetIdleTimer()
         print("[PasscodeManager] Device locked")
     }
@@ -119,9 +143,12 @@ class PasscodeManager: ObservableObject {
         remainingAttempts = maxAttempts
         lockoutUntil = nil
         
+        // Stop idle timer when passcode is reset
+        stopIdleTimer()
+        
         // Notify Supabase that passcode is reset
         Task {
-            await SupabaseManager.shared.resetChildPasscode(deviceId: getCurrentDeviceId())
+            try? await SupabaseManager.shared.resetChildPasscode(deviceId: getCurrentDeviceId())
         }
         
         print("[PasscodeManager] Passcode reset successfully")
@@ -169,19 +196,55 @@ class PasscodeManager: ObservableObject {
     // MARK: - Idle Timer Management
     
     private func startIdleTimer() {
-        resetIdleTimer()
+        // Ensure we're on the main thread for timer operations
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in
+                self?.startIdleTimer()
+            }
+            return
+        }
+        
+        // Safety check to prevent crashes
+        guard !isLocked else { return }
+        
+        idleTimer?.invalidate()
         idleTimer = Timer.scheduledTimer(withTimeInterval: idleTimeout, repeats: false) { [weak self] _ in
+            guard let self = self else { return }
             Task { @MainActor in
-                self?.handleIdleTimeout()
+                self.handleIdleTimeout()
             }
         }
     }
     
     private func resetIdleTimer() {
+        // Ensure we're on the main thread for timer operations
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in
+                self?.resetIdleTimer()
+            }
+            return
+        }
+        
+        // Safety check to prevent crashes
+        guard !isLocked else { return }
+        
         idleTimer?.invalidate()
         idleTimer = nil
         lastActivity = Date()
         startIdleTimer()
+    }
+    
+    private func stopIdleTimer() {
+        // Ensure we're on the main thread for timer operations
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in
+                self?.stopIdleTimer()
+            }
+            return
+        }
+        
+        idleTimer?.invalidate()
+        idleTimer = nil
     }
     
     private func handleIdleTimeout() {
@@ -199,7 +262,9 @@ class PasscodeManager: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.handleAppDidEnterBackground()
+            Task { @MainActor in
+                self?.handleAppDidEnterBackground()
+            }
         }
         
         NotificationCenter.default.addObserver(
@@ -207,7 +272,9 @@ class PasscodeManager: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.handleAppWillEnterForeground()
+            Task { @MainActor in
+                self?.handleAppWillEnterForeground()
+            }
         }
     }
     
@@ -265,13 +332,31 @@ class PasscodeManager: ObservableObject {
         remainingAttempts = maxAttempts - settings.failedAttempts
         lockoutUntil = settings.lockoutUntil
         
+        // Set locked state based on saved settings
+        // If passcode is enabled, device should be locked by default
+        // unless it was recently unlocked (within idle timeout)
+        if settings.isEnabled {
+            if let lockoutUntil = settings.lockoutUntil, Date() < lockoutUntil {
+                // Device is in lockout period
+                isLocked = true
+            } else {
+                // Check if device should be locked due to inactivity
+                let timeSinceLastActivity = Date().timeIntervalSince(settings.lastModified)
+                isLocked = timeSinceLastActivity > idleTimeout
+            }
+        } else {
+            isLocked = false
+        }
+        
         return settings
     }
     
     // MARK: - Deinitialization
     
     deinit {
+        // Directly invalidate timer in deinit since we can't call @MainActor methods
         idleTimer?.invalidate()
+        idleTimer = nil
         NotificationCenter.default.removeObserver(self)
     }
 }
@@ -283,9 +368,9 @@ struct PasscodeSettings: Codable {
     let salt: String
     let isEnabled: Bool
     let createdAt: Date
-    let lastModified: Date
-    let failedAttempts: Int
-    let lockoutUntil: Date?
+    var lastModified: Date
+    var failedAttempts: Int
+    var lockoutUntil: Date?
 }
 
 enum PasscodeValidationResult {

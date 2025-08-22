@@ -6,11 +6,22 @@ import ManagedSettings
 
 struct ConfigureActivitiesView: View {
     @StateObject private var shieldManager = ShieldManager.shared
+    @StateObject private var passcodeManager = PasscodeManager.shared
     @EnvironmentObject var appIconStore: AppIconStore
     private let store = ManagedSettingsStore()
     
     var body: some View {
         NavigationView {
+            Group {
+                if passcodeManager.isPasscodeEnabled && passcodeManager.isLocked {
+                    // Show passcode prompt if device is locked
+                    VStack {
+                        PasscodePromptView()
+                    }
+                    .navigationTitle("Shield")
+                    .navigationBarTitleDisplayMode(.inline)
+                } else {
+                    // Show normal configure activities UI
             List {
                 // Navigation Links Section
                 Section {
@@ -131,7 +142,13 @@ struct ConfigureActivitiesView: View {
             .onAppear {
                 // Refresh data when view appears
                 shieldManager.refreshData()
+                
+                // Debug: Print current passcode state
+                print("[ConfigureActivitiesView] Passcode enabled: \(passcodeManager.isPasscodeEnabled)")
+                print("[ConfigureActivitiesView] Device locked: \(passcodeManager.isLocked)")
             }
+        }
+        }
         }
     }
 }

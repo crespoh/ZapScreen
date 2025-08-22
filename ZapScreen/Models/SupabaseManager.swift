@@ -1222,23 +1222,37 @@ class SupabaseManager {
             throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
         }
         
-        print("[SupabaseManager] Syncing child passcode for device: \(deviceId)")
+        print("[SupabaseManager] Syncing child passcode for device: \(deviceId), user: \(userId)")
+        
+        // Check if passcode already exists
+        let existingPasscode = try await getLatestChildPasscode(deviceId: deviceId)
+        if existingPasscode != nil {
+            print("[SupabaseManager] Passcode already exists for device: \(deviceId), updating...")
+        } else {
+            print("[SupabaseManager] No existing passcode found for device: \(deviceId), creating new...")
+        }
         
         // Hash the passcode before storing
         let hashedPasscode = hashPasscode(passcode)
         
-        let response = try await client
-            .from("child_passcodes")
-            .upsert([
-                "user_account_id": userId,
-                "child_device_id": deviceId,
-                "hashed_passcode": hashedPasscode,
-                "created_at": ISO8601DateFormatter().string(from: Date()),
-                "updated_at": ISO8601DateFormatter().string(from: Date())
-            ])
-            .execute()
-        
-        print("[SupabaseManager] Successfully synced child passcode for device: \(deviceId)")
+        do {
+            let response = try await client
+                .from("child_passcodes")
+                .upsert([
+                    "user_account_id": userId,
+                    "child_device_id": deviceId,
+                    "hashed_passcode": hashedPasscode,
+                    "created_at": ISO8601DateFormatter().string(from: Date()),
+                    "updated_at": ISO8601DateFormatter().string(from: Date())
+                ], onConflict: "user_account_id,child_device_id")
+                .execute()
+            
+            print("[SupabaseManager] Successfully synced child passcode for device: \(deviceId)")
+        } catch {
+            print("[SupabaseManager] Failed to sync child passcode: \(error)")
+            print("[SupabaseManager] User ID: \(userId), Device ID: \(deviceId)")
+            throw error
+        }
     }
     
     /// Get the latest passcode for a child device from Supabase
@@ -1293,7 +1307,7 @@ class SupabaseManager {
                 "hashed_passcode": hashedPasscode,
                 "created_at": ISO8601DateFormatter().string(from: Date()),
                 "updated_at": ISO8601DateFormatter().string(from: Date())
-            ])
+            ], onConflict: "user_account_id,child_device_id")
             .execute()
         
         print("[SupabaseManager] Successfully updated child passcode for device: \(childDeviceId)")

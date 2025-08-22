@@ -9,7 +9,13 @@ struct PasscodePromptView: View {
     @State private var isValidating = false
     
     var body: some View {
-        VStack(spacing: 20) {
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: 20) {
+                    Spacer(minLength: 20)
+                    
+                    // Center content vertically
+                    VStack(spacing: 20) {
             // Header
             VStack(spacing: 8) {
                 Image(systemName: "lock.shield")
@@ -117,8 +123,26 @@ struct PasscodePromptView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .padding(.top, 20)
+                    }
+                    
+                    Spacer(minLength: 20)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 30)
+                .frame(minHeight: geometry.size.height)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(.systemBackground))
+                        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+                )
+            }
         }
-        .padding()
+        .padding(.horizontal, 20)
+        .padding(.vertical, 10)
+        .safeAreaInset(edge: .bottom) {
+            Color.clear.frame(height: 0)
+        }
+        .background(Color(.systemBackground))
         .onAppear {
             checkSupabaseForLatestPasscode()
         }
@@ -180,14 +204,10 @@ struct PasscodePromptView: View {
         Task {
             isCheckingSupabase = true
             
-            do {
-                let latestPasscode = await passcodeManager.checkSupabaseForLatestPasscode()
-                if latestPasscode != nil {
-                    // Passcode was updated from Supabase
-                    print("[PasscodePromptView] Passcode updated from Supabase")
-                }
-            } catch {
-                print("[PasscodePromptView] Failed to check Supabase: \(error)")
+            let latestPasscode = await passcodeManager.checkSupabaseForLatestPasscode()
+            if latestPasscode != nil {
+                // Passcode was updated from Supabase
+                print("[PasscodePromptView] Passcode updated from Supabase")
             }
             
             isCheckingSupabase = false

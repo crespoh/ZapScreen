@@ -50,6 +50,9 @@ struct SettingsView: View {
                         NavigationLink("Device List", destination: DeviceListView())
                             .foregroundColor(.blue)
                         
+                        NavigationLink("Passcode Debug", destination: PasscodeDebugView())
+                            .foregroundColor(.blue)
+                        
                         Button("Reset Authorization") {
                             resetAuthorization()
                         }
@@ -98,6 +101,9 @@ struct SettingsView: View {
                         // Device Management
                 Section("Device Management") {
                     NavigationLink("Scan Child Device QR Code", destination: QRCodeScannerView())
+                    
+                    NavigationLink("Child Passcode Management", destination: ParentPasscodeManagementView())
+                        .foregroundColor(.blue)
                         .foregroundColor(.green)
                 }
                 

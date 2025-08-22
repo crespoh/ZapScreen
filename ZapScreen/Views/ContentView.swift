@@ -26,6 +26,11 @@ struct ContentView: View {
                         Label("Shield", systemImage: "shield")
                     }
                 
+                ChatView()
+                    .tabItem {
+                        Label("Chat", systemImage: "message")
+                    }
+                
                 UsageStatisticsView()
                     .tabItem {
                         Label("Statistics", systemImage: "chart.bar")

@@ -10,9 +10,20 @@ import ManagedSettings
 
 struct AppStatusView: View {
     @StateObject private var viewModel = AppStatusViewModel()
+    @StateObject private var passcodeManager = PasscodeManager.shared
     
     var body: some View {
         NavigationView {
+            Group {
+                if passcodeManager.isPasscodeEnabled && passcodeManager.isLocked {
+                    // Show passcode prompt if device is locked
+                    VStack {
+                        PasscodePromptView()
+                    }
+                    .navigationTitle("App Status")
+                    .navigationBarTitleDisplayMode(.inline)
+                } else {
+                    // Show normal app status UI
             Group {
                 if viewModel.isLoading {
                     ProgressView("Loading app status...")
@@ -144,6 +155,13 @@ struct AppStatusView: View {
             .refreshable {
                 viewModel.refreshAppStatus()
             }
+            .onAppear {
+                // Debug: Print current passcode state
+                print("[AppStatusView] Passcode enabled: \(passcodeManager.isPasscodeEnabled)")
+                print("[AppStatusView] Device locked: \(passcodeManager.isLocked)")
+            }
+        }
+        }
         }
     }
 }
