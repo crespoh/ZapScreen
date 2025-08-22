@@ -26,15 +26,10 @@ struct ContentView: View {
                         Label("Shield", systemImage: "shield")
                     }
                 
-                DeviceListView()
+                UsageStatisticsView()
                     .tabItem {
-                        Label("Devices", systemImage: "iphone")
+                        Label("Statistics", systemImage: "chart.bar")
                     }
-                
-                        UsageStatisticsView()
-            .tabItem {
-                Label("Statistics", systemImage: "chart.bar")
-            }
         
         // Show Family Dashboard only for parent devices
         if isParentDevice {
@@ -49,19 +44,6 @@ struct ContentView: View {
                     Label("Pair Device", systemImage: "qrcode")
                 }
         }
-                
-                // Debug tabs - only shown when debug mode is enabled
-                if debugModeEnabled {
-                    GroupUserDefaultsView()
-                        .tabItem {
-                            Label("Debug", systemImage: "ladybug")
-                        }
-                    
-                    AppIconListView()
-                        .tabItem {
-                            Label("Icons", systemImage: "app.badge")
-                        }
-                }
                 
                 SettingsView()
                     .tabItem {

@@ -47,6 +47,9 @@ struct SettingsView: View {
                         NavigationLink("Device Activity Report", destination: DeviceActivityView())
                             .foregroundColor(.blue)
                         
+                        NavigationLink("Device List", destination: DeviceListView())
+                            .foregroundColor(.blue)
+                        
                         Button("Reset Authorization") {
                             resetAuthorization()
                         }
