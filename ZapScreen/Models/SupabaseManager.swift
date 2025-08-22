@@ -888,4 +888,160 @@ class SupabaseManager {
         let result = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         return result?["child_name"] as? String
     }
+    
+    // MARK: - Shield Settings Management
+    
+    /// Sync a single shield setting to Supabase
+    func syncShieldSetting(_ setting: SupabaseShieldSettingInsert) async throws -> String {
+        await restoreSessionFromAppGroup()
+        guard let userId = client.auth.currentUser?.id.uuidString else {
+            throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
+        }
+        
+        print("[SupabaseManager] Syncing shield setting for app: \(setting.app_name)")
+        
+        let response = try await client
+            .rpc("upsert_child_shield_setting", params: [
+                "p_user_account_id": userId,
+                "p_child_device_id": setting.child_device_id,
+                "p_child_name": setting.child_name,
+                "p_app_name": setting.app_name,
+                "p_bundle_identifier": setting.bundle_identifier,
+                "p_is_shielded": setting.is_shielded,
+                "p_shield_type": setting.shield_type,
+                "p_unlock_expiry": setting.unlock_expiry
+            ] as [String: Any])
+            .execute()
+        
+        let data = response.data
+        print("[SupabaseManager] Shield setting sync response: \(String(data: data, encoding: .utf8) ?? "nil")")
+        
+        // Try to parse as JSON object first
+        if let result = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let settingId = result["upsert_child_shield_setting"] as? String {
+            print("[SupabaseManager] Successfully synced shield setting: \(settingId)")
+            return settingId
+        }
+        
+        // If that fails, try to parse as plain string
+        if let responseString = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) {
+            print("[SupabaseManager] Successfully synced shield setting: \(responseString)")
+            return responseString
+        }
+        
+        throw NSError(domain: "SupabaseManager", code: 500, userInfo: [NSLocalizedDescriptionKey: "Invalid response format from upsert_child_shield_setting"])
+    }
+    
+    /// Sync multiple shield settings to Supabase
+    func syncShieldSettings(_ settings: [SupabaseShieldSettingInsert]) async throws -> [String] {
+        print("[SupabaseManager] Syncing \(settings.count) shield settings")
+        
+        var results: [String] = []
+        var errors: [Error] = []
+        
+        // Process settings in parallel with error handling
+        await withTaskGroup(of: (Int, Result<String, Error>).self) { group in
+            for (index, setting) in settings.enumerated() {
+                group.addTask {
+                    do {
+                        let result = try await self.syncShieldSetting(setting)
+                        return (index, .success(result))
+                    } catch {
+                        return (index, .failure(error))
+                    }
+                }
+            }
+            
+            for await (index, result) in group {
+                switch result {
+                case .success(let settingId):
+                    results.append(settingId)
+                    print("[SupabaseManager] Successfully synced shield setting \(index): \(settingId)")
+                case .failure(let error):
+                    errors.append(error)
+                    print("[SupabaseManager] Failed to sync shield setting \(index): \(error)")
+                }
+            }
+        }
+        
+        // If any errors occurred, throw the first one
+        if let firstError = errors.first {
+            throw firstError
+        }
+        
+        print("[SupabaseManager] Successfully synced all \(results.count) shield settings")
+        return results
+    }
+    
+    /// Get shield settings for a specific child device
+    func getChildShieldSettings(for childDeviceId: String) async throws -> [SupabaseShieldSetting] {
+        await restoreSessionFromAppGroup()
+        guard let userId = client.auth.currentUser?.id.uuidString else {
+            throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
+        }
+        
+        print("[SupabaseManager] Getting shield settings for child device: \(childDeviceId)")
+        
+        let response = try await client
+            .rpc("get_child_shield_settings", params: [
+                "p_user_account_id": userId,
+                "p_child_device_id": childDeviceId
+            ] as [String: String])
+            .execute()
+        
+        let data = response.data
+        print("[SupabaseManager] Shield settings response: \(String(data: data, encoding: .utf8) ?? "nil")")
+        
+        let settings = try JSONDecoder().decode([SupabaseShieldSetting].self, from: data)
+        print("[SupabaseManager] Retrieved \(settings.count) shield settings for child device: \(childDeviceId)")
+        
+        return settings
+    }
+    
+    /// Get all shield settings for all children of the current user
+    func getAllChildrenShieldSettings() async throws -> [SupabaseShieldSetting] {
+        await restoreSessionFromAppGroup()
+        guard let userId = client.auth.currentUser?.id.uuidString else {
+            throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
+        }
+        
+        print("[SupabaseManager] Getting all children shield settings for user: \(userId)")
+        
+        let response = try await client
+            .rpc("get_all_children_shield_settings", params: [
+                "p_user_account_id": userId
+            ] as [String: String])
+            .execute()
+        
+        let data = response.data
+        print("[SupabaseManager] All shield settings response: \(String(data: data, encoding: .utf8) ?? "nil")")
+        
+        let responseString = String(data: data, encoding: .utf8) ?? "nil"
+        print("[SupabaseManager] All shield settings response: \(responseString)")
+        
+        let settings = try JSONDecoder().decode([SupabaseShieldSetting].self, from: data)
+        print("[SupabaseManager] Retrieved \(settings.count) total shield settings for user: \(userId)")
+        
+        return settings
+    }
+    
+    /// Delete a shield setting from Supabase
+    func deleteShieldSetting(settingId: String) async throws -> Bool {
+        await restoreSessionFromAppGroup()
+        guard let userId = client.auth.currentUser?.id.uuidString else {
+            throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
+        }
+        
+        print("[SupabaseManager] Deleting shield setting: \(settingId)")
+        
+        let response = try await client
+            .from("child_shield_settings")
+            .delete()
+            .eq("id", value: settingId)
+            .eq("user_account_id", value: userId)
+            .execute()
+        
+        print("[SupabaseManager] Successfully deleted shield setting: \(settingId)")
+        return true
+    }
 }

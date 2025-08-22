@@ -399,6 +399,94 @@ struct DataBase {
         }
     }
     
+    // MARK: - Supabase Sync Methods
+    
+    /// Get the current device ID from UserDefaults
+    private func getCurrentDeviceId() -> String? {
+        return defaults?.string(forKey: "ZapDeviceId")
+    }
+    
+    /// Get the current user ID from UserDefaults
+    private func getCurrentUserId() -> String? {
+        return defaults?.string(forKey: "zap_userId")
+    }
+    
+    /// Get the current child name from UserDefaults
+    private func getCurrentChildName() -> String? {
+        return defaults?.string(forKey: "zap_childName")
+    }
+    
+    /// Sync shielded applications to Supabase
+    func syncShieldedApplicationsToSupabase() async {
+        guard let deviceId = getCurrentDeviceId(),
+              let userId = getCurrentUserId(),
+              let childName = getCurrentChildName() else {
+            print("[DataBase] Cannot sync: missing device ID, user ID, or child name")
+            return
+        }
+        
+        let shieldedApps = getShieldedApplications()
+        var settingsToSync: [SupabaseShieldSettingInsert] = []
+        
+        for (_, app) in shieldedApps {
+            let setting = SupabaseShieldSettingInsert(
+                applicationProfile: app,
+                userAccountId: userId,
+                childDeviceId: deviceId,
+                childName: childName
+            )
+            settingsToSync.append(setting)
+        }
+        
+        do {
+            let results = try await SupabaseManager.shared.syncShieldSettings(settingsToSync)
+            print("[DataBase] Successfully synced \(results.count) shielded applications to Supabase")
+        } catch {
+            print("[DataBase] Failed to sync shielded applications to Supabase: \(error)")
+        }
+    }
+    
+    /// Sync unshielded applications to Supabase
+    func syncUnshieldedApplicationsToSupabase() async {
+        guard let deviceId = getCurrentDeviceId(),
+              let userId = getCurrentUserId(),
+              let childName = getCurrentChildName() else {
+            print("[DataBase] Cannot sync: missing device ID, user ID, or child name")
+            return
+        }
+        
+        let unshieldedApps = getUnshieldedApplications()
+        var settingsToSync: [SupabaseShieldSettingInsert] = []
+        
+        for (_, app) in unshieldedApps {
+            let setting = SupabaseShieldSettingInsert(
+                unshieldedApp: app,
+                userAccountId: userId,
+                childDeviceId: deviceId,
+                childName: childName
+            )
+            settingsToSync.append(setting)
+        }
+        
+        do {
+            let results = try await SupabaseManager.shared.syncShieldSettings(settingsToSync)
+            print("[DataBase] Successfully synced \(results.count) unshielded applications to Supabase")
+        } catch {
+            print("[DataBase] Failed to sync unshielded applications to Supabase: \(error)")
+        }
+    }
+    
+    /// Sync all shield settings to Supabase
+    func syncAllShieldSettingsToSupabase() async {
+        print("[DataBase] Starting full shield settings sync to Supabase")
+        
+        // Sync both shielded and unshielded apps
+        await syncShieldedApplicationsToSupabase()
+        await syncUnshieldedApplicationsToSupabase()
+        
+        print("[DataBase] Completed full shield settings sync to Supabase")
+    }
+    
     // MARK: - Usage Statistics
     
     func getUsageStatistics() -> [String: UsageStatistics] {

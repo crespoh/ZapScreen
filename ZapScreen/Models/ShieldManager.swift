@@ -25,6 +25,12 @@ class ShieldManager: ObservableObject {
         print("[ShieldManager] Initializing ShieldManager")
         checkAuthorizationStatus()
         refreshData()
+        
+        // Initial sync to Supabase
+        Task {
+            await database.syncAllShieldSettingsToSupabase()
+        }
+        
         print("[ShieldManager] ShieldManager initialized with \(shieldedApplications.count) shielded apps")
     }
     
@@ -70,6 +76,12 @@ class ShieldManager: ObservableObject {
         // Apply shield immediately
         store.shield.applications?.insert(application.applicationToken)
         print("[ShieldManager] Shield applied to: \(application.applicationName)")
+        
+        // Sync to Supabase
+        Task {
+            await database.syncShieldedApplicationsToSupabase()
+        }
+        
         // Refresh data to trigger UI update
         refreshData()
     }
@@ -78,6 +90,12 @@ class ShieldManager: ObservableObject {
         database.removeShieldedApplication(application)
         // Remove shield immediately
         store.shield.applications?.remove(application.applicationToken)
+        
+        // Sync to Supabase
+        Task {
+            await database.syncShieldedApplicationsToSupabase()
+        }
+        
         // Refresh data to trigger UI update
         refreshData()
     }
@@ -115,7 +133,10 @@ class ShieldManager: ObservableObject {
                 let statistics = database.getUsageStatistics()
                 try await SupabaseManager.shared.syncUsageStatistics(Array(statistics.values))
                 
-                print("[ShieldManager] Successfully synced usage data to Supabase")
+                // Sync shield settings to Supabase
+                await database.syncUnshieldedApplicationsToSupabase()
+                
+                print("[ShieldManager] Successfully synced usage data and shield settings to Supabase")
             } catch {
                 print("[ShieldManager] Failed to sync usage data to Supabase: \(error)")
                 // Could implement retry logic or offline queue here in future phases
@@ -144,6 +165,11 @@ class ShieldManager: ObservableObject {
         
         // Re-add to shielded collection
         addApplicationToShield(originalAppProfile)
+        
+        // Sync to Supabase
+        Task {
+            await database.syncAllShieldSettingsToSupabase()
+        }
         
         // Refresh data to trigger UI update
         refreshData()
