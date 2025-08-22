@@ -60,7 +60,6 @@ struct SupabaseParentChildInsert: Encodable {
 // MARK: - Multi-Child Support Models
 
 struct SupabaseFamilySummary: Codable, Identifiable {
-    let id: String // Use a computed property for Identifiable
     let child_name: String
     let device_name: String
     let device_id: String
@@ -74,12 +73,11 @@ struct SupabaseFamilySummary: Codable, Identifiable {
         return ISO8601DateFormatter().date(from: last_activity)
     }
     
-    // Computed property for Identifiable
-    var identifier: String { device_id }
+    // Computed property for Identifiable - use device_id as the identifier
+    var id: String { device_id }
 }
 
 struct SupabaseChildDevice: Codable, Identifiable {
-    let id: String // Use device_id as the identifier
     let child_name: String
     let device_name: String
     let device_id: String
@@ -90,8 +88,8 @@ struct SupabaseChildDevice: Codable, Identifiable {
         ISO8601DateFormatter().date(from: created_at)
     }
     
-    // Computed property for Identifiable
-    var identifier: String { device_id }
+    // Computed property for Identifiable - use device_id as the identifier
+    var id: String { device_id }
 }
 
 class SupabaseManager {
@@ -745,12 +743,23 @@ class SupabaseManager {
             throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
         }
         
+        print("[SupabaseManager] getFamilySummary - User ID: \(userId)")
+        
+        // Convert to lowercase to match database storage
+        let normalizedUserId = userId.lowercased()
+        print("[SupabaseManager] getFamilySummary - Normalized User ID: \(normalizedUserId)")
+        
         let response = try await client
-            .rpc("get_family_summary", params: ["p_user_id": userId] as [String: String])
+            .rpc("get_family_summary", params: ["p_user_id": normalizedUserId] as [String: String])
             .execute()
         
         let data = response.data
-        return try JSONDecoder().decode([SupabaseFamilySummary].self, from: data)
+        print("[SupabaseManager] getFamilySummary - Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
+        
+        let summary = try JSONDecoder().decode([SupabaseFamilySummary].self, from: data)
+        print("[SupabaseManager] getFamilySummary - Decoded \(summary.count) summary items")
+        
+        return summary
     }
     
     // Get all children for a parent
@@ -760,12 +769,23 @@ class SupabaseManager {
             throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
         }
         
+        print("[SupabaseManager] getChildrenForParent - User ID: \(userId)")
+        
+        // Convert to lowercase to match database storage
+        let normalizedUserId = userId.lowercased()
+        print("[SupabaseManager] getChildrenForParent - Normalized User ID: \(normalizedUserId)")
+        
         let response = try await client
-            .rpc("get_children_for_parent", params: ["p_user_id": userId] as [String: String])
+            .rpc("get_children_for_parent", params: ["p_user_id": normalizedUserId] as [String: String])
             .execute()
         
         let data = response.data
-        return try JSONDecoder().decode([SupabaseChildDevice].self, from: data)
+        print("[SupabaseManager] getChildrenForParent - Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
+        
+        let children = try JSONDecoder().decode([SupabaseChildDevice].self, from: data)
+        print("[SupabaseManager] getChildrenForParent - Decoded \(children.count) children")
+        
+        return children
     }
     
     // Get child-specific statistics

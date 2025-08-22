@@ -7,6 +7,36 @@ struct RootView: View {
     @AppStorage("isAuthorized", store: UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")) private var isAuthorized = false
     @AppStorage("authRetryCount", store: UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")) private var authRetryCount = 0
     let center = AuthorizationCenter.shared
+    
+    // Helper function to handle authorization errors gracefully
+    private func handleAuthorizationError(_ error: Error) {
+        print("[RootView] Handling authorization error: \(error)")
+        
+        if let authError = error as? FamilyControlsError {
+            switch authError {
+            case .authorizationConflict:
+                print("[RootView] 🔄 Authorization conflict detected - this should be rare now with smart checking")
+                // Since we're now checking status first, conflicts should be rare
+                // Just proceed anyway since we know the user has authorization
+                isAuthorized = true
+                ShieldManager.shared.shieldActivities()
+                
+            case .authorizationCanceled:
+                print("[RootView] ❌ Authorization canceled by user")
+                isAuthorized = false
+                selectedRoleRaw = nil
+                
+            default:
+                print("[RootView] ⚠️ Other authorization error: \(authError)")
+                // For other errors, try to proceed anyway
+                isAuthorized = true
+            }
+        } else {
+            print("[RootView] ❓ Unknown authorization error: \(error)")
+            // For unknown errors, try to proceed anyway
+            isAuthorized = true
+        }
+    }
 
     var selectedRole: UserRole? {
         get { selectedRoleRaw.flatMap { UserRole(rawValue: $0) } }
@@ -20,119 +50,139 @@ struct RootView: View {
             } else if selectedRole == nil {
                 SelectionView { role in
                     let raw = role.rawValue
-                                    Task { @MainActor in
+                                                    Task { @MainActor in
                     selectedRoleRaw = raw
                     authRetryCount = 0 // Reset retry count for new role selection
                     
-                    // Check current authorization status first
+                    // SMART AUTHORIZATION CHECK - Check status BEFORE requesting
                     let currentStatus = center.authorizationStatus
-                    print("[RootView] Current authorization status: \(currentStatus)")
+                    print("[RootView] Smart Authorization Check - Current status: \(currentStatus)")
                     
-                    do {
-                                                    if currentStatus == .approved {
-                            // Already authorized, no need to request again
-                            print("[RootView] Already authorized, skipping request")
-                            isAuthorized = true
-                            // Reapply shields since authorization is now confirmed
-                            ShieldManager.shared.shieldActivities()
-                        } else if currentStatus == .notDetermined {
-                            print("[RootView] Authorization not determined, requesting for role: \(role)")
-                            // Add a small delay to avoid conflicts
-                            try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
-                            
+                    // Only request authorization if not already approved
+                    if currentStatus == .approved {
+                        // Already authorized - proceed immediately without requesting
+                        print("[RootView] ✅ Already authorized, proceeding directly")
+                        isAuthorized = true
+                        ShieldManager.shared.shieldActivities()
+                    } else if currentStatus == .notDetermined {
+                        // Not determined - safe to request authorization
+                        print("[RootView] 🔄 Authorization not determined, requesting for role: \(role)")
+                        
+                        do {
                             if role == .child {
                                 try await center.requestAuthorization(for: .child)
                             } else {
                                 try await center.requestAuthorization(for: .individual)
                             }
                             isAuthorized = true
-                            print("[RootView] Authorization successful")
-                            // Reapply shields after successful authorization
+                            print("[RootView] ✅ Authorization successful")
                             ShieldManager.shared.shieldActivities()
-                        } else {
-                            print("[RootView] Authorization status: \(currentStatus), proceeding anyway")
-                            // For other statuses (denied, restricted), proceed anyway
-                            isAuthorized = true
-                        }
                         } catch {
-                            print("[RootView] Failed to get authorization: \(error)")
-                            
-                            // Handle specific error cases
-                            if let authError = error as? FamilyControlsError {
-                                switch authError {
-                                                            case .authorizationConflict:
-                                print("[RootView] Authorization conflict - checking current status")
-                                authRetryCount += 1
-                                print("[RootView] Authorization conflict detected - status: \(center.authorizationStatus), retry count: \(authRetryCount)")
-                                
-                                // If we've tried too many times, just proceed anyway
-                                if authRetryCount >= 3 {
-                                    print("[RootView] Too many retries, proceeding anyway")
-                                    isAuthorized = true
-                                    authRetryCount = 0
-                                } else {
-                                    // Check if we have a stored role and try to proceed anyway
-                                    if let storedRole = selectedRoleRaw {
-                                        print("[RootView] Keeping stored role: \(storedRole)")
-                                        // Don't reset the role, just mark as authorized to break the loop
-                                        isAuthorized = true
-                                                                           print("[RootView] Proceeding with stored role despite conflict")
-                                   // Reapply shields when proceeding despite conflict
-                                   ShieldManager.shared.shieldActivities()
-                                   } else {
-                                        print("[RootView] No stored role, resetting")
-                                        isAuthorized = false
-                                        selectedRoleRaw = nil
-                                    }
-                                }
-                                case .authorizationCanceled:
-                                    print("[RootView] Authorization canceled by user")
-                                    isAuthorized = false
-                                    selectedRoleRaw = nil
-                                default:
-                                    print("[RootView] Other authorization error: \(authError)")
-                                    isAuthorized = false
-                                    selectedRoleRaw = nil
-                                }
-                            } else {
-                                print("[RootView] Unknown authorization error")
-                                isAuthorized = false
-                                selectedRoleRaw = nil
-                            }
+                            print("[RootView] ❌ Authorization request failed: \(error)")
+                            handleAuthorizationError(error)
                         }
+                    } else if currentStatus == .denied {
+                        // Authorization denied - show guidance but proceed
+                        print("[RootView] ⚠️ Authorization denied, proceeding anyway")
+                        isAuthorized = true
+                        // Could show a message to user about enabling Family Controls in Settings
+                    } else {
+                        // Other statuses - proceed anyway
+                        print("[RootView] ℹ️ Authorization status: \(currentStatus), proceeding anyway")
+                        isAuthorized = true
                     }
+                }
                 }
                     } else if !isAuthorized {
             VStack(spacing: 20) {
                 ProgressView()
                 Text("Authorizing...")
                 
-                // Emergency break-the-loop button
-                                       Button("Force Continue (Emergency)") {
-                           print("[RootView] Emergency force continue pressed")
-                           isAuthorized = true
-                           authRetryCount = 0
-                           // Reapply shields when force continuing
-                           ShieldManager.shared.shieldActivities()
-                       }
+                // Emergency button (should rarely be needed now)
+                Button("Force Continue (Emergency)") {
+                    print("[RootView] Emergency force continue pressed")
+                    isAuthorized = true
+                    authRetryCount = 0
+                    ShieldManager.shared.shieldActivities()
+                }
                 .buttonStyle(.borderedProminent)
-                .foregroundColor(.red)
+                .foregroundColor(.orange)
+                .font(.caption)
+            }
+            .onAppear {
+                // Check if we need to request authorization when this view appears
+                let currentStatus = center.authorizationStatus
+                print("[RootView] Authorizing View - Authorization Check - Status: \(currentStatus), Role: \(selectedRole?.rawValue ?? "nil")")
+                
+                if currentStatus == .notDetermined && selectedRole != nil {
+                    print("[RootView] Authorizing View - 🔄 Requesting authorization for role: \(selectedRole?.rawValue ?? "unknown")")
+                    // Request authorization immediately
+                    Task { @MainActor in
+                        do {
+                            if selectedRole == .child {
+                                print("[RootView] Authorizing View - Requesting child authorization...")
+                                try await center.requestAuthorization(for: .child)
+                            } else {
+                                print("[RootView] Authorizing View - Requesting individual authorization...")
+                                try await center.requestAuthorization(for: .individual)
+                            }
+                            isAuthorized = true
+                            print("[RootView] Authorizing View - ✅ Authorization successful")
+                            ShieldManager.shared.shieldActivities()
+                        } catch {
+                            print("[RootView] Authorizing View - ❌ Authorization request failed: \(error)")
+                            handleAuthorizationError(error)
+                        }
+                    }
+                }
             }
             } else {
                 ContentView()
             }
         }
         .onAppear {
-            // Check authorization status when the view appears
+            // Smart authorization check when the view appears
             let currentStatus = center.authorizationStatus
-            print("[RootView] OnAppear - Authorization status: \(currentStatus)")
+            print("[RootView] OnAppear - Smart Authorization Check - Status: \(currentStatus)")
+            print("[RootView] OnAppear - Debug: selectedRole=\(selectedRole?.rawValue ?? "nil"), isAuthorized=\(isAuthorized)")
             
-            if selectedRole != nil && currentStatus == .approved && !isAuthorized {
-                print("[RootView] OnAppear - Updating authorization status to true")
-                isAuthorized = true
-            } else if selectedRole != nil && currentStatus != .approved && isAuthorized {
-                print("[RootView] OnAppear - Authorization status changed to not approved")
-                isAuthorized = false
+            if selectedRole != nil {
+                if currentStatus == .approved && !isAuthorized {
+                    print("[RootView] OnAppear - ✅ Already authorized, updating status")
+                    isAuthorized = true
+                    ShieldManager.shared.shieldActivities()
+                } else if currentStatus == .notDetermined && !isAuthorized {
+                    print("[RootView] OnAppear - 🔄 Authorization not determined, requesting authorization for role: \(selectedRole?.rawValue ?? "unknown")")
+                    // Request authorization for the selected role
+                    Task { @MainActor in
+                        do {
+                            if selectedRole == .child {
+                                print("[RootView] OnAppear - Requesting child authorization...")
+                                try await center.requestAuthorization(for: .child)
+                            } else {
+                                print("[RootView] OnAppear - Requesting individual authorization...")
+                                try await center.requestAuthorization(for: .individual)
+                            }
+                            isAuthorized = true
+                            print("[RootView] OnAppear - ✅ Authorization successful")
+                            ShieldManager.shared.shieldActivities()
+                        } catch {
+                            print("[RootView] OnAppear - ❌ Authorization request failed: \(error)")
+                            handleAuthorizationError(error)
+                        }
+                    }
+                } else if currentStatus == .notDetermined && isAuthorized {
+                    print("[RootView] OnAppear - ⚠️ Status is Not Determined but isAuthorized is true - this shouldn't happen")
+                    // This case shouldn't happen, but let's handle it
+                    isAuthorized = false
+                } else if currentStatus != .approved && isAuthorized {
+                    print("[RootView] OnAppear - ⚠️ Authorization status changed to not approved")
+                    isAuthorized = false
+                } else {
+                    print("[RootView] OnAppear - ℹ️ No action needed - Status: \(currentStatus), isAuthorized: \(isAuthorized)")
+                }
+            } else {
+                print("[RootView] OnAppear - No role selected yet")
             }
         }
     }

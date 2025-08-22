@@ -41,8 +41,8 @@ struct ChildSelectorView: View {
                             .multilineTextAlignment(.center)
                         
                         Button("Add Child Device") {
-                            // TODO: Navigate to child registration
-                            print("Add child device tapped")
+                            // This will be handled by the parent view
+                            print("Add child device tapped - should navigate to QR scanner")
                         }
                         .buttonStyle(.borderedProminent)
                     }

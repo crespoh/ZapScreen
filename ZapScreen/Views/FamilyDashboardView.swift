@@ -4,6 +4,7 @@ struct FamilyDashboardView: View {
     @StateObject private var viewModel = FamilyDashboardViewModel()
     @State private var showingChildSelector = false
     @State private var selectedChild: SupabaseChildDevice?
+    @State private var showingQRScanner = false
     
     var body: some View {
         NavigationView {
@@ -25,14 +26,14 @@ struct FamilyDashboardView: View {
                     Spacer()
                     ProgressView("Loading family data...")
                     Spacer()
-                } else if viewModel.familySummary.isEmpty {
+                } else if viewModel.children.isEmpty {
                     Spacer()
                     VStack(spacing: 16) {
                         Image(systemName: "person.3")
                             .font(.system(size: 48))
                             .foregroundColor(.secondary)
                         
-                        Text("No Family Data")
+                        Text("No Children Registered")
                             .font(.headline)
                         
                         Text("No child devices have been registered yet.")
@@ -41,8 +42,8 @@ struct FamilyDashboardView: View {
                             .multilineTextAlignment(.center)
                         
                         Button("Add Child Device") {
-                            // TODO: Navigate to child registration
-                            print("Add child device tapped")
+                            showingQRScanner = true
+                            print("Add child device tapped - navigating to QR scanner")
                         }
                         .buttonStyle(.borderedProminent)
                     }
@@ -76,6 +77,9 @@ struct FamilyDashboardView: View {
         .sheet(isPresented: $showingChildSelector) {
             ChildSelectorView(selectedChild: $selectedChild)
         }
+        .sheet(isPresented: $showingQRScanner) {
+            QRCodeScannerView()
+        }
         .onAppear {
             viewModel.loadFamilySummary()
         }
@@ -95,7 +99,7 @@ struct FamilyDashboardView: View {
             HStack(spacing: 20) {
                 summaryItem(
                     title: "Children",
-                    value: "\(viewModel.familySummary.count)",
+                    value: "\(viewModel.children.count)",
                     icon: "person.2.fill",
                     color: .blue
                 )
@@ -132,14 +136,14 @@ struct FamilyDashboardView: View {
                 Spacer()
             }
             
-            ForEach(viewModel.familySummary) { child in
+            ForEach(viewModel.children) { child in
                 childCard(child)
             }
         }
     }
     
     // MARK: - Child Card
-    private func childCard(_ child: SupabaseFamilySummary) -> some View {
+    private func childCard(_ child: SupabaseChildDevice) -> some View {
         VStack(spacing: 12) {
             HStack {
                 // Child Avatar
@@ -165,19 +169,19 @@ struct FamilyDashboardView: View {
                 
                 Spacer()
                 
-                // Last Activity
-                if let lastActivity = child.lastActivityDate {
-                    Text(lastActivity, style: .relative)
+                // Registration Date
+                if let createdDate = child.createdAtDate {
+                    Text("Registered \(createdDate, style: .relative)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
             }
             
-            // Activity Stats
+            // Device Info
             HStack(spacing: 20) {
-                statItem(title: "Apps", value: "\(child.total_apps)")
-                statItem(title: "Requests", value: "\(child.total_requests)")
-                statItem(title: "Time", value: "\(child.total_minutes)min")
+                statItem(title: "Device ID", value: String(child.device_id.prefix(8)))
+                statItem(title: "Status", value: "Active")
+                statItem(title: "Type", value: "Child Device")
             }
         }
         .padding()
@@ -222,6 +226,7 @@ struct FamilyDashboardView: View {
 // MARK: - Family Dashboard ViewModel
 class FamilyDashboardViewModel: ObservableObject {
     @Published var familySummary: [SupabaseFamilySummary] = []
+    @Published var children: [SupabaseChildDevice] = []
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
     
@@ -237,28 +242,42 @@ class FamilyDashboardViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         
-        Task {
-            do {
-                let summary = try await SupabaseManager.shared.getFamilySummary()
-                
-                await MainActor.run {
-                    self.familySummary = summary
-                    self.isLoading = false
-                    
-                    // Debug: Show what we got
-                    print("[FamilyDashboardViewModel] Loaded \(summary.count) children")
-                    for child in summary {
-                        print("[FamilyDashboardViewModel] Child: \(child.child_name), Apps: \(child.total_apps), Requests: \(child.total_requests)")
+                        Task {
+                    do {
+                        // First, get the list of registered children (regardless of usage)
+                        print("[FamilyDashboardViewModel] Calling getChildrenForParent()...")
+                        let registeredChildren = try await SupabaseManager.shared.getChildrenForParent()
+                        print("[FamilyDashboardViewModel] Loaded \(registeredChildren.count) registered children")
+                        
+                        // Then, get usage statistics for those children
+                        print("[FamilyDashboardViewModel] Calling getFamilySummary()...")
+                        let summary = try await SupabaseManager.shared.getFamilySummary()
+                        print("[FamilyDashboardViewModel] Loaded \(summary.count) children with usage statistics")
+                        
+                        await MainActor.run {
+                            self.children = registeredChildren
+                            self.familySummary = summary
+                            self.isLoading = false
+                            
+                            // Debug: Show what we got
+                            print("[FamilyDashboardViewModel] Registered children:")
+                            for child in registeredChildren {
+                                print("[FamilyDashboardViewModel] - \(child.child_name) (\(child.device_name))")
+                            }
+                            
+                            print("[FamilyDashboardViewModel] Children with usage:")
+                            for child in summary {
+                                print("[FamilyDashboardViewModel] - \(child.child_name): Apps: \(child.total_apps), Requests: \(child.total_requests)")
+                            }
+                        }
+                    } catch {
+                        await MainActor.run {
+                            self.errorMessage = error.localizedDescription
+                            self.isLoading = false
+                        }
+                        print("[FamilyDashboardViewModel] Failed to load family data: \(error)")
                     }
                 }
-            } catch {
-                await MainActor.run {
-                    self.errorMessage = error.localizedDescription
-                    self.isLoading = false
-                }
-                print("[FamilyDashboardViewModel] Failed to load family summary: \(error)")
-            }
-        }
     }
 }
 
