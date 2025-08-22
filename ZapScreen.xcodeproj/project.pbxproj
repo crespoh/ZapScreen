@@ -171,6 +171,7 @@
 				Models/ApplicationProfile.swift,
 				Models/DataBase.swift,
 				Models/ShieldManager.swift,
+				Models/ShieldSettingsModels.swift,
 				Models/SupabaseManager.swift,
 				Models/UnshieldedApplication.swift,
 			);
@@ -183,6 +184,7 @@
 				Models/ApplicationProfile.swift,
 				Models/DataBase.swift,
 				Models/ShieldManager.swift,
+				Models/ShieldSettingsModels.swift,
 				Models/SupabaseManager.swift,
 				Models/UnshieldedApplication.swift,
 			);
@@ -202,6 +204,7 @@
 				Models/ApplicationProfile.swift,
 				Models/DataBase.swift,
 				Models/ShieldManager.swift,
+				Models/ShieldSettingsModels.swift,
 				Models/SupabaseManager.swift,
 				Models/UnshieldedApplication.swift,
 			);
@@ -217,6 +220,7 @@
 		37E189942E5167CF00692EF6 /* Exceptions for "ZapScreen" folder in "ZapScreenDeviceActivityReport" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Models/ShieldSettingsModels.swift,
 				Models/UnshieldedApplication.swift,
 			);
 			target = 37CDDFB02E1377FE00F1C2D5 /* ZapScreenDeviceActivityReport */;

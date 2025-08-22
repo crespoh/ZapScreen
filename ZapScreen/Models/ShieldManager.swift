@@ -91,8 +91,25 @@ class ShieldManager: ObservableObject {
         // Remove shield immediately
         store.shield.applications?.remove(application.applicationToken)
         
-        // Sync to Supabase
+        // Delete from Supabase first, then sync remaining apps
         Task {
+            // Get current device info for deletion
+            let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
+            if let deviceId = groupDefaults?.string(forKey: "ZapDeviceId") {
+                
+                // Delete from Supabase by app bundle identifier
+                do {
+                    try await SupabaseManager.shared.deleteShieldSettingByApp(
+                        bundleIdentifier: String(application.applicationToken.hashValue),
+                        childDeviceId: deviceId
+                    )
+                    print("[ShieldManager] Successfully deleted shield setting for \(application.applicationName) from Supabase")
+                } catch {
+                    print("[ShieldManager] Failed to delete shield setting from Supabase: \(error)")
+                }
+            }
+            
+            // Also sync remaining shielded apps to ensure consistency
             await database.syncShieldedApplicationsToSupabase()
         }
         

@@ -92,6 +92,144 @@ struct SupabaseChildDevice: Codable, Identifiable {
     var id: String { device_id }
 }
 
+// MARK: - Shield Settings Models
+
+/// Model for storing child shield settings in Supabase
+struct SupabaseShieldSetting: Codable, Identifiable {
+    let id: String
+    let user_account_id: String
+    let child_device_id: String
+    let child_name: String
+    let app_name: String
+    let bundle_identifier: String
+    let is_shielded: Bool
+    let shield_type: String // "permanent" or "temporary"
+    let unlock_expiry: String? // ISO8601 date string
+    let created_at: String
+    let updated_at: String
+    
+    /// Convert unlock_expiry string to Date
+    var unlockExpiryDate: Date? {
+        guard let unlock_expiry = unlock_expiry else { return nil }
+        return ISO8601DateFormatter().date(from: unlock_expiry)
+    }
+    
+    /// Convert created_at string to Date
+    var createdAtDate: Date? {
+        ISO8601DateFormatter().date(from: created_at)
+    }
+    
+    /// Convert updated_at string to Date
+    var updatedAtDate: Date? {
+        ISO8601DateFormatter().date(from: updated_at)
+    }
+    
+    /// Check if the shield setting is expired (for temporary shields)
+    var isExpired: Bool {
+        guard let expiryDate = unlockExpiryDate else { return false }
+        return Date() > expiryDate
+    }
+    
+    /// Get remaining time for temporary shields
+    var remainingTime: TimeInterval? {
+        guard let expiryDate = unlockExpiryDate else { return nil }
+        let remaining = expiryDate.timeIntervalSince(Date())
+        return remaining > 0 ? remaining : 0
+    }
+    
+    /// Get remaining minutes for temporary shields
+    var remainingMinutes: Int? {
+        guard let remaining = remainingTime else { return nil }
+        return Int(remaining / 60)
+    }
+    
+    /// Get formatted remaining time string
+    var formattedRemainingTime: String? {
+        guard let minutes = remainingMinutes else { return nil }
+        if minutes < 60 {
+            return "\(minutes)m"
+        } else {
+            let hours = minutes / 60
+            let remainingMins = minutes % 60
+            if remainingMins == 0 {
+                return "\(hours)h"
+            } else {
+                return "\(hours)h \(remainingMins)m"
+            }
+        }
+    }
+}
+
+/// Model for inserting/updating child shield settings in Supabase
+struct SupabaseShieldSettingInsert: Encodable {
+    let user_account_id: String
+    let child_device_id: String
+    let child_name: String
+    let app_name: String
+    let bundle_identifier: String
+    let is_shielded: Bool
+    let shield_type: String
+    let unlock_expiry: String?
+    
+    /// Initialize with ApplicationProfile for shielded apps
+    init(applicationProfile: ApplicationProfile, 
+         userAccountId: String, 
+         childDeviceId: String, 
+         childName: String) {
+        self.user_account_id = userAccountId
+        self.child_device_id = childDeviceId
+        self.child_name = childName
+        self.app_name = applicationProfile.applicationName
+        self.bundle_identifier = String(applicationProfile.applicationToken.hashValue)
+        self.is_shielded = true
+        self.shield_type = "permanent"
+        self.unlock_expiry = nil
+    }
+    
+    /// Initialize with UnshieldedApplication for temporarily unshielded apps
+    init(unshieldedApp: UnshieldedApplication, 
+         userAccountId: String, 
+         childDeviceId: String, 
+         childName: String) {
+        self.user_account_id = userAccountId
+        self.child_device_id = childDeviceId
+        self.child_name = childName
+        self.app_name = unshieldedApp.applicationName
+        self.bundle_identifier = String(unshieldedApp.shieldedAppToken.hashValue)
+        self.is_shielded = false
+        self.shield_type = "temporary"
+        
+        // Convert expiry date to ISO8601 string
+        let formatter = ISO8601DateFormatter()
+        self.unlock_expiry = formatter.string(from: unshieldedApp.expiryDate)
+    }
+    
+    /// Initialize with custom values
+    init(userAccountId: String, 
+         childDeviceId: String, 
+         childName: String, 
+         appName: String, 
+         bundleIdentifier: String, 
+         isShielded: Bool, 
+         shieldType: String, 
+         unlockExpiry: Date? = nil) {
+        self.user_account_id = userAccountId
+        self.child_device_id = childDeviceId
+        self.child_name = childName
+        self.app_name = appName
+        self.bundle_identifier = bundleIdentifier
+        self.is_shielded = isShielded
+        self.shield_type = shieldType
+        
+        if let expiry = unlockExpiry {
+            let formatter = ISO8601DateFormatter()
+            self.unlock_expiry = formatter.string(from: expiry)
+        } else {
+            self.unlock_expiry = nil
+        }
+    }
+}
+
 class SupabaseManager {
     static let shared = SupabaseManager()
     let client: SupabaseClient
@@ -907,10 +1045,10 @@ class SupabaseManager {
                 "p_child_name": setting.child_name,
                 "p_app_name": setting.app_name,
                 "p_bundle_identifier": setting.bundle_identifier,
-                "p_is_shielded": setting.is_shielded,
+                "p_is_shielded": setting.is_shielded ? "true" : "false",
                 "p_shield_type": setting.shield_type,
                 "p_unlock_expiry": setting.unlock_expiry
-            ] as [String: Any])
+            ] as [String: String?])
             .execute()
         
         let data = response.data
@@ -1025,23 +1163,44 @@ class SupabaseManager {
         return settings
     }
     
-    /// Delete a shield setting from Supabase
+    /// Delete a shield setting from Supabase by ID
     func deleteShieldSetting(settingId: String) async throws -> Bool {
         await restoreSessionFromAppGroup()
         guard let userId = client.auth.currentUser?.id.uuidString else {
             throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
         }
         
-        print("[SupabaseManager] Deleting shield setting: \(settingId)")
+        print("[SupabaseManager] Deleting shield setting by ID: \(settingId)")
         
-        let response = try await client
+        _ = try await client
             .from("child_shield_settings")
             .delete()
             .eq("id", value: settingId)
             .eq("user_account_id", value: userId)
             .execute()
         
-        print("[SupabaseManager] Successfully deleted shield setting: \(settingId)")
+        print("[SupabaseManager] Successfully deleted shield setting by ID: \(settingId)")
+        return true
+    }
+    
+    /// Delete a shield setting from Supabase by app bundle identifier and device info
+    func deleteShieldSettingByApp(bundleIdentifier: String, childDeviceId: String) async throws -> Bool {
+        await restoreSessionFromAppGroup()
+        guard let userId = client.auth.currentUser?.id.uuidString else {
+            throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
+        }
+        
+        print("[SupabaseManager] Deleting shield setting for app bundle: \(bundleIdentifier) on device: \(childDeviceId)")
+        
+        _ = try await client
+            .from("child_shield_settings")
+            .delete()
+            .eq("bundle_identifier", value: bundleIdentifier)
+            .eq("child_device_id", value: childDeviceId)
+            .eq("user_account_id", value: userId)
+            .execute()
+        
+        print("[SupabaseManager] Successfully deleted shield setting for app bundle: \(bundleIdentifier)")
         return true
     }
 }

@@ -413,7 +413,7 @@ struct DataBase {
     
     /// Get the current child name from UserDefaults
     private func getCurrentChildName() -> String? {
-        return defaults?.string(forKey: "zap_childName")
+        return defaults?.string(forKey: "DeviceName")
     }
     
     /// Sync shielded applications to Supabase
