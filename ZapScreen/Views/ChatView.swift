@@ -22,13 +22,10 @@ struct ChatView: View {
                         
                         Spacer()
                         
-                        Button(action: {
-                            showingNewMessage = true
-                        }) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.title2)
-                                .foregroundColor(.blue)
-                        }
+                        // No need for manual chat creation - chats are auto-created for family members
+                        Text("Family Chats")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                     
                     // Filter Picker
@@ -54,21 +51,22 @@ struct ChatView: View {
                 } else if chatManager.chatSessions.isEmpty {
                     Spacer()
                     VStack(spacing: 16) {
-                        Image(systemName: "message.circle")
+                        Image(systemName: "person.3")
                             .font(.system(size: 60))
                             .foregroundColor(.gray)
                         
-                        Text("No Chat Sessions")
+                        Text("No Family Members Found")
                             .font(.title3)
                             .fontWeight(.medium)
                         
-                        Text("Start a conversation with your family member")
+                        Text("Chat sessions will appear here when you have registered family members")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                         
-                        Button("Start Chat") {
-                            showingNewMessage = true
+                        Button("Go to Family Dashboard") {
+                            // This would navigate to family dashboard to add members
+                            print("Navigate to family dashboard")
                         }
                         .buttonStyle(.borderedProminent)
                     }
@@ -87,15 +85,16 @@ struct ChatView: View {
                 }
             }
             .navigationBarHidden(true)
-            .sheet(isPresented: $showingNewMessage) {
-                NewChatView()
-            }
+            // Remove manual chat creation - chats are auto-created for family members
             .sheet(item: $selectedSession) { session in
                 ChatDetailView(session: session)
             }
             .onAppear {
                 Task {
+                    // First load existing chat sessions
                     await chatManager.loadChatSessions()
+                    // Then ensure chat sessions exist for all family members
+                    await chatManager.loadFamilyMembersAndCreateChats()
                 }
             }
             .refreshable {
@@ -186,108 +185,9 @@ struct ChatSessionRow: View {
     }
 }
 
-// MARK: - New Chat View
-
-struct NewChatView: View {
-    @Environment(\.dismiss) private var dismiss
-    @StateObject private var chatManager = ChatManager.shared
-    @State private var childDeviceId = ""
-    @State private var childName = ""
-    @State private var isCreating = false
-    @State private var errorMessage = ""
-    
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                VStack(spacing: 8) {
-                    Image(systemName: "person.badge.plus")
-                        .font(.system(size: 50))
-                        .foregroundColor(.blue)
-                    
-                    Text("Start New Chat")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    
-                    Text("Enter the child device information to start chatting")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-                .padding(.top, 20)
-                
-                VStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Child Device ID")
-                            .font(.headline)
-                        
-                        TextField("Enter device ID", text: $childDeviceId)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Child Name")
-                            .font(.headline)
-                        
-                        TextField("Enter child name", text: $childName)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                    }
-                }
-                .padding(.horizontal)
-                
-                if !errorMessage.isEmpty {
-                    Text(errorMessage)
-                        .foregroundColor(.red)
-                        .font(.caption)
-                        .padding(.horizontal)
-                }
-                
-                Spacer()
-                
-                Button("Start Chat") {
-                    createChat()
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(childDeviceId.isEmpty || childName.isEmpty || isCreating)
-                .padding(.bottom, 20)
-            }
-            .navigationTitle("New Chat")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-    
-    private func createChat() {
-        guard !childDeviceId.isEmpty && !childName.isEmpty else { return }
-        
-        isCreating = true
-        errorMessage = ""
-        
-        Task {
-            do {
-                let session = try await chatManager.createChatSession(
-                    childDeviceId: childDeviceId,
-                    childName: childName
-                )
-                
-                await MainActor.run {
-                    isCreating = false
-                    dismiss()
-                }
-            } catch {
-                await MainActor.run {
-                    errorMessage = error.localizedDescription
-                    isCreating = false
-                }
-            }
-        }
-    }
-}
+// MARK: - Family-Based Chat System
+// Chat sessions are automatically created for registered family members
+// No manual chat creation needed
 
 // MARK: - Chat Detail View
 

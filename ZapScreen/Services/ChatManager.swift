@@ -57,10 +57,21 @@ class ChatManager: ObservableObject {
         isLoading = false
     }
     
-    func createChatSession(childDeviceId: String, childName: String) async throws -> ChatSession {
+    /// Automatically create chat sessions for registered family members
+    func createChatSessionForFamilyMember(childDeviceId: String, childName: String) async throws -> ChatSession {
         await restoreSessionFromAppGroup()
         guard let userId = SupabaseManager.shared.client.auth.currentUser?.id.uuidString else {
             throw ChatError.notAuthenticated
+        }
+        
+        // Check if chat session already exists
+        let existingSessions = chatSessions.filter { session in
+            session.childDeviceId == childDeviceId
+        }
+        
+        if !existingSessions.isEmpty {
+            print("[ChatManager] Chat session already exists for child: \(childName)")
+            return existingSessions.first!
         }
         
         let session = ChatSession(
@@ -84,8 +95,35 @@ class ChatManager: ObservableObject {
         // Add to local sessions
         chatSessions.insert(createdSession, at: 0)
         
-        print("[ChatManager] Created chat session: \(createdSession.id)")
+        print("[ChatManager] Created chat session for family member: \(childName)")
         return createdSession
+    }
+    
+    /// Load family members and create chat sessions automatically
+    func loadFamilyMembersAndCreateChats() async {
+        await restoreSessionFromAppGroup()
+        guard let userId = SupabaseManager.shared.client.auth.currentUser?.id.uuidString else {
+            print("[ChatManager] No authenticated user found")
+            return
+        }
+        
+        do {
+            // Get family members from existing family system
+            let familyMembers = try await SupabaseManager.shared.getChildrenForParent()
+            
+            // Create chat sessions for each family member
+            for member in familyMembers {
+                try await createChatSessionForFamilyMember(
+                    childDeviceId: member.device_id,
+                    childName: member.child_name
+                )
+            }
+            
+            print("[ChatManager] Created chat sessions for \(familyMembers.count) family members")
+            
+        } catch {
+            print("[ChatManager] Error loading family members: \(error)")
+        }
     }
     
     // MARK: - Messages Management

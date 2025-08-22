@@ -830,11 +830,57 @@ class SupabaseManager {
         
         // If that fails, try to parse as plain string (direct UUID return)
         if let responseString = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) {
-            print("[SupabaseManager] Successfully registered child device: \(childName)")
-            return responseString
+                    print("[SupabaseManager] Successfully registered child device: \(childName)")
+        
+        // Automatically create chat session for the new child
+        await createChatSessionForChild(deviceId: deviceId, childName: childName)
+        
+        return responseString
         }
         
         throw NSError(domain: "SupabaseManager", code: 500, userInfo: [NSLocalizedDescriptionKey: "Invalid response format from register_child_device_with_name"])
+    }
+    
+    // Automatically create chat session when child device is registered
+    private func createChatSessionForChild(deviceId: String, childName: String) async {
+        await restoreSessionFromAppGroup()
+        guard let userId = client.auth.currentUser?.id.uuidString else {
+            print("[SupabaseManager] No authenticated user found for chat session creation")
+            return
+        }
+        
+        do {
+            // Check if chat session already exists
+            let existingResponse = try await client
+                .from("chat_sessions")
+                .select()
+                .eq("parent_device_id", value: userId)
+                .eq("child_device_id", value: deviceId)
+                .execute()
+            
+            let existingData = existingResponse.data
+            let existingSessions = try JSONDecoder().decode([ChatSession].self, from: existingData)
+            
+            if !existingSessions.isEmpty {
+                print("[SupabaseManager] Chat session already exists for child: \(childName)")
+                return
+            }
+            
+            // Create new chat session
+            let response = try await client
+                .from("chat_sessions")
+                .insert([
+                    "parent_device_id": userId,
+                    "child_device_id": deviceId,
+                    "child_name": childName
+                ])
+                .execute()
+            
+            print("[SupabaseManager] Automatically created chat session for child: \(childName)")
+            
+        } catch {
+            print("[SupabaseManager] Error creating chat session for child: \(error)")
+        }
     }
     
     // Register parent device
