@@ -17,11 +17,13 @@ struct QRCodeScannerView: View {
                     GeometryReader { geometry in
                         CameraPreviewView(session: viewModel.session)
                             .frame(width: geometry.size.width, height: geometry.size.height)
+                            .clipped() // Prevents overflow
                             .onAppear {
                                 print("[QRCodeScannerView] Camera preview appeared with size: \(geometry.size)")
                             }
                     }
                     .ignoresSafeArea()
+                    .clipped() // Additional clipping for safety
                 } else if let error = viewModel.cameraError {
                     VStack(spacing: 20) {
                         Image(systemName: "camera.slash.fill")
@@ -98,40 +100,6 @@ struct QRCodeScannerView: View {
                         Text("Make sure the QR code is clearly visible")
                             .font(.caption)
                             .foregroundColor(.white.opacity(0.8))
-                        
-                        Button("Enter Manually") {
-                            // TODO: Show manual entry form
-                            print("Manual entry tapped")
-                        }
-                        .buttonStyle(.bordered)
-                        .foregroundColor(.white)
-                        
-                        Button("Debug Camera") {
-                            print("[QRCodeScannerView] Camera status - Permission: \(viewModel.cameraPermissionGranted), Scanning: \(viewModel.isScanning), Running: \(viewModel.isSessionRunning)")
-                            viewModel.checkSessionStatus()
-                            if viewModel.cameraPermissionGranted && !viewModel.isScanning {
-                                viewModel.startScanning()
-                            }
-                        }
-                        
-                        Button("Restart Camera") {
-                            print("[QRCodeScannerView] Restarting camera...")
-                            viewModel.stopScanning()
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                viewModel.startScanning()
-                            }
-                        }
-                        
-                        Button("Force Refresh Preview") {
-                            print("[QRCodeScannerView] Forcing preview refresh...")
-                            // Force a layout update
-                            DispatchQueue.main.async {
-                                // This will trigger updateUIView
-                            }
-                        }
-                        .buttonStyle(.bordered)
-                        .foregroundColor(.purple)
-                        .padding(.bottom, 40)
                     }
                 }
                 }
@@ -193,14 +161,19 @@ struct QRCodeScannerView: View {
                 PasscodeConfirmationView(deviceInfo: deviceInfo)
             }
         }
+        .onReceive(viewModel.scannedCodePublisher) { scannedString in
+            handleScannedCode(scannedString)
+        }
         .onAppear {
             viewModel.requestCameraPermission()
         }
         .onDisappear {
             viewModel.stopScanning()
         }
-        .onReceive(viewModel.scannedCodePublisher) { scannedString in
-            handleScannedCode(scannedString)
+        .navigationViewStyle(StackNavigationViewStyle()) // Forces portrait layout
+        .onAppear {
+            // Lock to portrait orientation
+            UIDevice.current.setValue(UIInterfaceOrientation.portrait.rawValue, forKey: "orientation")
         }
     }
     
@@ -235,9 +208,16 @@ struct CameraPreviewView: UIViewRepresentable {
         
         let previewLayer = AVCaptureVideoPreviewLayer(session: session)
         previewLayer.videoGravity = .resizeAspectFill
+        
+        // Force portrait orientation
         if #available(iOS 17.0, *) {
             previewLayer.connection?.videoRotationAngle = 0
         } else {
+            previewLayer.connection?.videoOrientation = .portrait
+        }
+        
+        // Ensure the preview layer is properly oriented (iOS 16 and below)
+        if !ProcessInfo.processInfo.isiOSAppOnMac {
             previewLayer.connection?.videoOrientation = .portrait
         }
         
@@ -246,7 +226,7 @@ struct CameraPreviewView: UIViewRepresentable {
         // Store the preview layer in the coordinator for later access
         context.coordinator.previewLayer = previewLayer
         
-        print("[CameraPreviewView] Created preview layer")
+        print("[CameraPreviewView] Created preview layer with portrait orientation")
         return view
     }
     
@@ -260,12 +240,19 @@ struct CameraPreviewView: UIViewRepresentable {
                 
                 // Ensure the preview layer is properly configured
                 if bounds.width > 0 && bounds.height > 0 {
+                    // Always maintain portrait orientation
                     if #available(iOS 17.0, *) {
                         previewLayer.connection?.videoRotationAngle = 0
                     } else {
                         previewLayer.connection?.videoOrientation = .portrait
                     }
-                    print("[CameraPreviewView] Preview layer configured with valid bounds")
+                    
+                    // Force portrait orientation (iOS 16 and below)
+                    if !ProcessInfo.processInfo.isiOSAppOnMac {
+                        previewLayer.connection?.videoOrientation = .portrait
+                    }
+                    
+                    print("[CameraPreviewView] Preview layer configured with valid bounds and portrait orientation")
                 }
             }
         }
@@ -452,7 +439,8 @@ class QRCodeScannerViewModel: NSObject, ObservableObject {
         print("[QRCodeScannerViewModel] Session outputs: \(session.outputs.count)")
         
         if let input = session.inputs.first as? AVCaptureDeviceInput {
-            print("[QRCodeScannerViewModel] Input device: \(input.device.localizedName ?? "Unknown")")
+            let deviceName = input.device.localizedName ?? "Unknown Device"
+            print("[QRCodeScannerViewModel] Input device: \(deviceName)")
         }
         
         if let output = session.outputs.first as? AVCaptureMetadataOutput {

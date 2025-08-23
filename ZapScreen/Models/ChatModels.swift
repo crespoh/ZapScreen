@@ -153,7 +153,7 @@ struct ChatMessage: Identifiable, Codable {
         case receiverName = "receiver_name"
         case messageType = "message_type"
         case content
-        case timestamp
+        case timestamp = "message_timestamp"  // ✅ Map to message_timestamp from Supabase function
         case isRead = "is_read"
         case unlockRequestId = "unlock_request_id"
         case appName = "app_name"

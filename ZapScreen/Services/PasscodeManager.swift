@@ -13,7 +13,7 @@ class PasscodeManager: ObservableObject {
     @Published var lastActivity: Date = Date()
     
     private let maxAttempts = 3
-    private let lockoutDuration: TimeInterval = 60 // 1 minute
+    private let lockoutDuration: TimeInterval = 10 // 1 minute
     private let idleTimeout: TimeInterval = 30 // 30 seconds
     private var idleTimer: Timer?
     
@@ -68,6 +68,35 @@ class PasscodeManager: ObservableObject {
         }
         
         print("[PasscodeManager] Passcode set successfully")
+    }
+    
+    /// Save an already-hashed passcode from Supabase (no rehashing needed)
+    private func saveHashedPasscode(_ hashedPasscode: String) async throws {
+        // Generate a new salt for the local storage
+        let salt = generateSalt()
+        
+        // Save locally with the hashed passcode from Supabase
+        let settings = PasscodeSettings(
+            hashedPasscode: hashedPasscode,
+            salt: salt,
+            isEnabled: true,
+            createdAt: Date(),
+            lastModified: Date(),
+            failedAttempts: 0,
+            lockoutUntil: nil
+        )
+        
+        savePasscodeSettings(settings)
+        isPasscodeEnabled = true
+        isLocked = true
+        lastActivity = Date()
+        
+        // Start idle timer now that passcode is enabled
+        DispatchQueue.main.async { [weak self] in
+            self?.startIdleTimer()
+        }
+        
+        print("[PasscodeManager] Hashed passcode saved from Supabase successfully")
     }
     
     /// Force lock the device immediately (useful after passcode setup)
@@ -135,6 +164,24 @@ class PasscodeManager: ObservableObject {
         print("[PasscodeManager] Device unlocked")
     }
     
+    /// Reset failed attempts when lockout expires
+    func resetFailedAttempts() {
+        guard var settings = loadPasscodeSettings() else { return }
+        
+        // Reset failed attempts and lockout
+        settings.failedAttempts = 0
+        settings.lockoutUntil = nil
+        
+        // Save updated settings
+        savePasscodeSettings(settings)
+        
+        // Reset manager state
+        remainingAttempts = maxAttempts
+        lockoutUntil = nil
+        
+        print("[PasscodeManager] Failed attempts reset after lockout expiration")
+    }
+    
     func resetPasscode() async throws {
         // Clear local passcode settings
         UserDefaults.standard.removeObject(forKey: "PasscodeSettings")
@@ -171,19 +218,21 @@ class PasscodeManager: ObservableObject {
     
     func checkSupabaseForLatestPasscode() async -> String? {
         do {
-            let latestPasscode = try await SupabaseManager.shared.getLatestChildPasscode(
+            let latestHashedPasscode = try await SupabaseManager.shared.getLatestChildPasscode(
                 deviceId: getCurrentDeviceId()
             )
             
-            if let latest = latestPasscode {
-                // Update local passcode if different
+            print("[PasscodeManager] Retrieved hashed passcode from Supabase: \(latestHashedPasscode ?? "nil")")
+
+            if let hashedPasscode = latestHashedPasscode {
+                // Update local passcode if different (no need to rehash since it's already hashed)
                 if let currentSettings = loadPasscodeSettings(),
-                   let currentHash = hashPasscode(latest, salt: currentSettings.salt),
-                   currentHash != currentSettings.hashedPasscode {
+                   hashedPasscode != currentSettings.hashedPasscode {
                     
-                    try await setPasscode(latest)
-                    print("[PasscodeManager] Updated local passcode from Supabase")
-                    return latest
+                    // Save the hashed passcode directly without rehashing
+                    try await saveHashedPasscode(hashedPasscode)
+                    print("[PasscodeManager] Updated local hashed passcode from Supabase")
+                    return hashedPasscode
                 }
             }
         } catch {

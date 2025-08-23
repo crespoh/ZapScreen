@@ -7,6 +7,8 @@ struct PasscodePromptView: View {
     @State private var errorMessage = ""
     @State private var isCheckingSupabase = false
     @State private var isValidating = false
+    @State private var lockoutTimer: Timer?
+    @State private var remainingLockoutTime: Int = 0
     
     var body: some View {
         GeometryReader { geometry in
@@ -48,13 +50,13 @@ struct PasscodePromptView: View {
             .padding(.vertical, 20)
             
             // Status Messages
-            if let lockoutUntil = passcodeManager.lockoutUntil {
+            if let lockoutUntil = passcodeManager.lockoutUntil, remainingLockoutTime > 0 {
                 VStack(spacing: 4) {
                     Text("Too many failed attempts")
                         .font(.caption)
                         .foregroundColor(.red)
                     
-                    Text("Try again in \(Int(lockoutUntil.timeIntervalSinceNow)) seconds")
+                    Text("Try again in \(remainingLockoutTime) seconds")
                         .font(.caption)
                         .foregroundColor(.orange)
                 }
@@ -145,6 +147,10 @@ struct PasscodePromptView: View {
         .background(Color(.systemBackground))
         .onAppear {
             checkSupabaseForLatestPasscode()
+            startLockoutTimer()
+        }
+        .onDisappear {
+            stopLockoutTimer()
         }
         .alert("Error", isPresented: $showingError) {
             Button("OK") { }
@@ -195,7 +201,8 @@ struct PasscodePromptView: View {
             // Device is locked out
             isValidating = false
             enteredPasscode = ""
-            errorMessage = "Device locked. Try again after \(Int(lockoutUntil.timeIntervalSinceNow)) seconds."
+            let timeRemaining = max(0, Int(lockoutUntil.timeIntervalSinceNow))
+            errorMessage = "Device locked. Try again after \(timeRemaining) seconds."
             showingError = true
         }
     }
@@ -211,6 +218,49 @@ struct PasscodePromptView: View {
             }
             
             isCheckingSupabase = false
+        }
+    }
+    
+    // MARK: - Timer Management
+    
+    private func startLockoutTimer() {
+        // Stop any existing timer
+        stopLockoutTimer()
+        
+        // Start a timer that updates every second
+        lockoutTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            updateLockoutDisplay()
+        }
+        
+        // Initial update
+        updateLockoutDisplay()
+    }
+    
+    private func stopLockoutTimer() {
+        lockoutTimer?.invalidate()
+        lockoutTimer = nil
+    }
+    
+    private func updateLockoutDisplay() {
+        guard let lockoutUntil = passcodeManager.lockoutUntil else {
+            remainingLockoutTime = 0
+            return
+        }
+        
+        let timeRemaining = Int(lockoutUntil.timeIntervalSinceNow)
+        
+        // Only show positive values
+        if timeRemaining > 0 {
+            remainingLockoutTime = timeRemaining
+        } else {
+            // Lockout has expired - reset failed attempts
+            remainingLockoutTime = 0
+            passcodeManager.resetFailedAttempts()
+            
+            // Force view update by triggering a state change
+            DispatchQueue.main.async {
+                // This will trigger a view refresh
+            }
         }
     }
 }

@@ -95,6 +95,21 @@ struct SupabaseChildDevice: Codable, Identifiable {
     var id: String { device_id }
 }
 
+struct SupabaseParentDevice: Codable, Identifiable {
+    let parent_name: String
+    let device_name: String
+    let device_id: String
+    let device_token: String?
+    let created_at: String
+    
+    var createdAtDate: Date? {
+        ISO8601DateFormatter().date(from: created_at)
+    }
+    
+    // Computed property for Identifiable - use device_id as the identifier
+    var id: String { device_id }
+}
+
 // MARK: - Shield Settings Models
 
 /// Model for storing child shield settings in Supabase
@@ -354,7 +369,7 @@ class SupabaseManager {
             device_name: deviceName,
             is_parent: isParent,
             user_account_id: userAccountId,
-            child_name: nil // Will be set when registering child devices
+            device_owner: nil // Will be set when registering child devices
         )
         let response = try await client
             .from("devices")
@@ -975,6 +990,32 @@ class SupabaseManager {
         print("[SupabaseManager] getChildrenForParent - Decoded \(children.count) children")
         
         return children
+    }
+
+    // Get all parents for a child device
+    func getParentsForChild() async throws -> [SupabaseParentDevice] {
+        await restoreSessionFromAppGroup()
+        guard let userId = client.auth.currentUser?.id.uuidString else {
+            throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
+        }
+        
+        print("[SupabaseManager] getParentsForChild - User ID: \(userId)")
+        
+        // Convert to lowercase to match database storage
+        let normalizedUserId = userId.lowercased()
+        print("[SupabaseManager] getParentsForChild - Normalized User ID: \(normalizedUserId)")
+        
+        let response = try await client
+            .rpc("get_parents_for_child", params: ["p_user_id": normalizedUserId] as [String: String])
+            .execute()
+        
+        let data = response.data
+        print("[SupabaseManager] getParentsForChild - Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
+        
+        let parents = try JSONDecoder().decode([SupabaseParentDevice].self, from: data)
+        print("[SupabaseManager] getParentsForChild - Decoded \(parents.count) parents")
+        
+        return parents
     }
     
     // Get child-specific statistics

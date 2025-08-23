@@ -145,6 +145,32 @@ struct ChatView: View {
 struct ChatSessionRow: View {
     let session: ChatSession
     
+    // Determine the display name based on current device's role
+    private var displayName: String {
+        // Get current device ID from group UserDefaults
+        guard let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") else {
+            return session.childName // Fallback if group defaults unavailable
+        }
+        
+        let currentDeviceId = groupDefaults.string(forKey: "ZapDeviceId") ?? ""
+        
+        if session.parentDeviceId == currentDeviceId {
+            // Current device is parent, show child name
+            return session.childName
+        } else if session.childDeviceId == currentDeviceId {
+            // Current device is child, show parent name
+            return session.parentName ?? "Parent"
+        } else {
+            // Fallback to child name if device role can't be determined
+            return session.childName
+        }
+    }
+    
+    // Get first character for avatar
+    private var avatarInitial: String {
+        String(displayName.prefix(1)).uppercased()
+    }
+    
     var body: some View {
         HStack(spacing: 12) {
             // Avatar
@@ -152,7 +178,7 @@ struct ChatSessionRow: View {
                 .fill(Color.blue.opacity(0.2))
                 .frame(width: 50, height: 50)
                 .overlay(
-                    Text(String(session.childName.prefix(1)).uppercased())
+                    Text(avatarInitial)
                         .font(.title2)
                         .fontWeight(.semibold)
                         .foregroundColor(.blue)
@@ -161,7 +187,7 @@ struct ChatSessionRow: View {
             // Content
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text(session.childName)
+                    Text(displayName)
                         .font(.headline)
                         .fontWeight(.medium)
                     
@@ -320,7 +346,12 @@ struct MessageBubble: View {
     @StateObject private var chatManager = ChatManager.shared
     
     private var isFromCurrentUser: Bool {
-        let currentDeviceId = UserDefaults.standard.string(forKey: "ZapDeviceId") ?? ""
+        // Get device ID from group UserDefaults for consistency
+        guard let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") else {
+            return false // Fallback if group defaults unavailable
+        }
+        
+        let currentDeviceId = groupDefaults.string(forKey: "ZapDeviceId") ?? ""
         return message.senderId == currentDeviceId
     }
     
@@ -357,7 +388,7 @@ struct MessageBubble: View {
                             .padding(.leading, 4)
                     }
                     
-                    Spacer()
+//                    Spacer()
                     
                     Text(message.formattedTimestamp)
                         .font(.caption2)

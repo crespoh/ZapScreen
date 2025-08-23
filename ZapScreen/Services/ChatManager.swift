@@ -33,14 +33,34 @@ class ChatManager: ObservableObject {
         
         do {
             await restoreSessionFromAppGroup()
-            guard let userId = SupabaseManager.shared.client.auth.currentUser?.id.uuidString else {
-                throw ChatError.notAuthenticated
+            
+            // Get current device ID instead of family account ID
+            guard let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") else { 
+                throw ChatError.notAuthenticated 
             }
+            var currentDeviceId = groupDefaults.string(forKey: "ZapDeviceId") ?? ""
+            
+            // Fallback to UIDevice identifier if ZapDeviceId is empty
+            if currentDeviceId.isEmpty {
+                let fallbackId = UIDevice.current.identifierForVendor?.uuidString
+                print("[ChatManager] loadChatSessions - UIDevice fallback ID: '\(fallbackId ?? "nil")'")
+                
+                if let fallbackId = fallbackId, !fallbackId.isEmpty {
+                    currentDeviceId = fallbackId
+                    print("[ChatManager] loadChatSessions - Using UIDevice fallback: \(currentDeviceId)")
+                } else {
+                    // Generate a random UUID as last resort
+                    currentDeviceId = UUID().uuidString
+                    print("[ChatManager] loadChatSessions - Generated random device ID: \(currentDeviceId)")
+                }
+            }
+            
+            print("[ChatManager] loadChatSessions - Current device ID: \(currentDeviceId)")
             
             let response = try await SupabaseManager.shared.client
                 .from("chat_sessions")
                 .select()
-                .or("parent_device_id.eq.\(userId),child_device_id.eq.\(userId)")
+                .or("parent_device_id.eq.\(currentDeviceId),child_device_id.eq.\(currentDeviceId)")
                 .order("last_message_at", ascending: false)
                 .execute()
             
@@ -51,7 +71,7 @@ class ChatManager: ObservableObject {
             
             // Transform sessions to show the correct participant name
             let transformedSessions = sessions.map { session in
-                transformSessionForDisplay(session, currentUserId: userId)
+                transformSessionForDisplay(session, currentDeviceId: currentDeviceId)
             }
             
             chatSessions = transformedSessions
@@ -78,9 +98,6 @@ class ChatManager: ObservableObject {
         guard let userId = SupabaseManager.shared.client.auth.currentUser?.id.uuidString else {
             throw ChatError.notAuthenticated
         }
-        
-//        var currentDeviceId = UserDefaults.standard.string(forKey: "ZapDeviceId") ?? ""
-//        print("[ChatManager] Initial ZapDeviceId: '\(currentDeviceId)'")
         
         guard let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") else { throw ChatError.notAuthenticated }
         var currentDeviceId = groupDefaults.string(forKey: "ZapDeviceId") ?? ""
@@ -184,7 +201,7 @@ class ChatManager: ObservableObject {
             let createdSession = try JSONDecoder().decode([ChatSession].self, from: data).first!
             
             // Transform the session for display based on current user role
-            let transformedSession = transformSessionForDisplay(createdSession, currentUserId: userId)
+            let transformedSession = transformSessionForDisplay(createdSession, currentDeviceId: currentDeviceId)
             
             // Add to local sessions
             chatSessions.insert(transformedSession, at: 0)
@@ -217,7 +234,7 @@ class ChatManager: ObservableObject {
                 print("[ChatManager] Created session: \(createdSession.id) for \(createdSession.childName)")
                 
                 // Transform the session for display based on current user role
-                let transformedSession = transformSessionForDisplay(createdSession, currentUserId: userId)
+                let transformedSession = transformSessionForDisplay(createdSession, currentDeviceId: currentDeviceId)
                 
                 // Add to local sessions
                 chatSessions.insert(transformedSession, at: 0)
@@ -247,13 +264,8 @@ class ChatManager: ObservableObject {
     
     /// Set device name in UserDefaults for persistent storage
     private func ensureDeviceNameIsSet() {
-        let currentDeviceName = UserDefaults.standard.string(forKey: "DeviceName") ?? ""
-        
-        if currentDeviceName.isEmpty {
-            let deviceName = UIDevice.current.model
-            UserDefaults.standard.set(deviceName, forKey: "DeviceName")
-            print("[ChatManager] Set device name in UserDefaults: \(deviceName)")
-        }
+        guard let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") else { return }
+        var currentDeviceId = groupDefaults.string(forKey: "DeviceName") ?? ""
     }
     
     /// Load family members and create chat sessions automatically
@@ -305,7 +317,16 @@ class ChatManager: ObservableObject {
             } else {
                 // Current device is child - get all parents
                 print("[ChatManager] Current device is child, loading parents...")
-                let parents = try await getParentsForChild(deviceId: currentDeviceId)
+                let parentDevices = try await SupabaseManager.shared.getParentsForChild()
+                
+                // Map SupabaseParentDevice to ParentInfo structure
+                let parents = parentDevices.map { device in
+                    ParentInfo(
+                        parentDeviceId: device.device_id,
+                        parentName: device.parent_name
+                    )
+                }
+                
                 print("[ChatManager] Found \(parents.count) parents: \(parents.map { $0.parentName })")
                 
                 // Create chat sessions for each parent
@@ -369,8 +390,13 @@ class ChatManager: ObservableObject {
             throw ChatError.notAuthenticated
         }
         
-        let deviceId = UserDefaults.standard.string(forKey: "ZapDeviceId") ?? ""
-        let deviceName = UserDefaults.standard.string(forKey: "DeviceName") ?? "Unknown Device"
+        // Get device ID and name from group UserDefaults
+        guard let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") else {
+            throw ChatError.notAuthenticated
+        }
+
+        let deviceId = groupDefaults.string(forKey: "ZapDeviceId") ?? ""
+        let deviceName = groupDefaults.string(forKey: "DeviceName") ?? "Unknown Device"
         
         // Clean up the sessionId by removing extra quotes
         let cleanSessionId = sessionId.replacingOccurrences(of: "\"", with: "")
@@ -472,12 +498,13 @@ class ChatManager: ObservableObject {
     
     func sendUnlockRequest(appName: String, appBundleId: String, duration: Int, message: String?, sessionId: String) async throws {
         await restoreSessionFromAppGroup()
-        guard let userId = SupabaseManager.shared.client.auth.currentUser?.id.uuidString else {
+        guard (SupabaseManager.shared.client.auth.currentUser?.id.uuidString) != nil else {
             throw ChatError.notAuthenticated
         }
         
-        let deviceId = UserDefaults.standard.string(forKey: "ZapDeviceId") ?? ""
-        let deviceName = UserDefaults.standard.string(forKey: "DeviceName") ?? "Unknown Device"
+        guard let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") else { throw ChatError.notAuthenticated }
+        let deviceId = groupDefaults.string(forKey: "ZapDeviceId") ?? ""
+        let deviceName = groupDefaults.string(forKey: "DeviceName") ?? "Unknown Device"
         
         // Create unlock request
         let unlockRequest = UnlockRequest(
@@ -672,25 +699,10 @@ class ChatManager: ObservableObject {
         }
     }
     
-    /// Get all parents for a child device
-    private func getParentsForChild(deviceId: String) async throws -> [ParentInfo] {
-        let response = try await SupabaseManager.shared.client
-            .from("parent_child")
-            .select("parent_device_id")
-            .eq("child_device_id", value: deviceId)
-            .execute()
-        
-        let data = response.data
-        let parents = try JSONDecoder().decode([ParentInfo].self, from: data)
-        return parents
-    }
-    
     /// Transform a session for display based on current user role
-    private func transformSessionForDisplay(_ session: ChatSession, currentUserId: String) -> ChatSession {
-        let currentDeviceId = UserDefaults.standard.string(forKey: "ZapDeviceId") ?? ""
-        
+    private func transformSessionForDisplay(_ session: ChatSession, currentDeviceId: String) -> ChatSession {
+                
         print("[ChatManager] Transform session - Original: parent=\(session.parentDeviceId), child=\(session.childDeviceId), name=\(session.childName)")
-        print("[ChatManager] Transform session - Current user: \(currentUserId)")
         print("[ChatManager] Transform session - Current device: \(currentDeviceId)")
         
         if session.parentDeviceId == currentDeviceId {
