@@ -169,6 +169,7 @@
 			membershipExceptions = (
 				Models/AppIconStore.swift,
 				Models/ApplicationProfile.swift,
+				Models/ChatModels.swift,
 				Models/DataBase.swift,
 				Models/ShieldManager.swift,
 				Models/ShieldSettingsModels.swift,
@@ -182,6 +183,7 @@
 			membershipExceptions = (
 				Models/AppIconStore.swift,
 				Models/ApplicationProfile.swift,
+				Models/ChatModels.swift,
 				Models/DataBase.swift,
 				Models/ShieldManager.swift,
 				Models/ShieldSettingsModels.swift,
@@ -202,6 +204,7 @@
 			membershipExceptions = (
 				Models/AppIconStore.swift,
 				Models/ApplicationProfile.swift,
+				Models/ChatModels.swift,
 				Models/DataBase.swift,
 				Models/ShieldManager.swift,
 				Models/ShieldSettingsModels.swift,
@@ -220,6 +223,7 @@
 		37E189942E5167CF00692EF6 /* Exceptions for "ZapScreen" folder in "ZapScreenDeviceActivityReport" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Models/ChatModels.swift,
 				Models/ShieldSettingsModels.swift,
 				Models/UnshieldedApplication.swift,
 			);

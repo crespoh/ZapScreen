@@ -86,15 +86,26 @@ struct ChatView: View {
             }
             .navigationBarHidden(true)
             // Remove manual chat creation - chats are auto-created for family members
-            .sheet(item: $selectedSession) { session in
-                ChatDetailView(session: session)
-            }
+            .background(
+                NavigationLink(
+                    destination: selectedSession.map { ChatDetailView(session: $0) },
+                    isActive: Binding(
+                        get: { selectedSession != nil },
+                        set: { if !$0 { selectedSession = nil } }
+                    )
+                ) {
+                    EmptyView()
+                }
+            )
             .onAppear {
                 Task {
+                    print("[ChatView] onAppear - Starting chat session loading...")
                     // First load existing chat sessions
                     await chatManager.loadChatSessions()
+                    print("[ChatView] onAppear - Loaded \(chatManager.chatSessions.count) existing chat sessions")
                     // Then ensure chat sessions exist for all family members
                     await chatManager.loadFamilyMembersAndCreateChats()
+                    print("[ChatView] onAppear - After family member sync, total sessions: \(chatManager.chatSessions.count)")
                 }
             }
             .refreshable {
@@ -156,9 +167,15 @@ struct ChatSessionRow: View {
                     
                     Spacer()
                     
-                    Text(session.lastMessageAt, style: .relative)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    if let lastMessageAt = session.lastMessageAt {
+                        Text(lastMessageAt, style: .relative)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("No messages")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
                 
                 HStack {
@@ -303,8 +320,8 @@ struct MessageBubble: View {
     @StateObject private var chatManager = ChatManager.shared
     
     private var isFromCurrentUser: Bool {
-        let currentUserId = UserDefaults.standard.string(forKey: "ZapDeviceId") ?? ""
-        return message.senderId == currentUserId
+        let currentDeviceId = UserDefaults.standard.string(forKey: "ZapDeviceId") ?? ""
+        return message.senderId == currentDeviceId
     }
     
     var body: some View {
@@ -322,26 +339,32 @@ struct MessageBubble: View {
                         UnlockResponseBubble(message: message)
                     } else {
                         Text(message.content)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(isFromCurrentUser ? Color.blue : Color(.systemGray5))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(isFromCurrentUser ? Color.blue : Color(.systemGray6))
                             .foregroundColor(isFromCurrentUser ? .white : .primary)
-                            .cornerRadius(16)
+                            .cornerRadius(18)
+                            .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 1)
                     }
                 }
                 
-                // Timestamp
+                // Timestamp and sender name
                 HStack {
                     if !isFromCurrentUser {
                         Text(message.senderName)
                             .font(.caption)
                             .foregroundColor(.secondary)
+                            .padding(.leading, 4)
                     }
+                    
+                    Spacer()
                     
                     Text(message.formattedTimestamp)
                         .font(.caption2)
                         .foregroundColor(.secondary)
+                        .padding(.trailing, 4)
                 }
+                .padding(.horizontal, 4)
             }
             
             if !isFromCurrentUser {

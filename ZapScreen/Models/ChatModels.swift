@@ -79,6 +79,8 @@ struct ChatMessage: Identifiable, Codable {
     let id: UUID
     let senderId: String
     let senderName: String
+    let receiverId: String
+    let receiverName: String
     let messageType: MessageType
     let content: String
     let timestamp: Date
@@ -95,6 +97,8 @@ struct ChatMessage: Identifiable, Codable {
         id: UUID = UUID(),
         senderId: String,
         senderName: String,
+        receiverId: String,
+        receiverName: String,
         messageType: MessageType,
         content: String,
         timestamp: Date = Date(),
@@ -108,6 +112,8 @@ struct ChatMessage: Identifiable, Codable {
         self.id = id
         self.senderId = senderId
         self.senderName = senderName
+        self.receiverId = receiverId
+        self.receiverName = receiverName
         self.messageType = messageType
         self.content = content
         self.timestamp = timestamp
@@ -143,6 +149,8 @@ struct ChatMessage: Identifiable, Codable {
         case id
         case senderId = "sender_id"
         case senderName = "sender_name"
+        case receiverId = "receiver_id"
+        case receiverName = "receiver_name"
         case messageType = "message_type"
         case content
         case timestamp
@@ -152,6 +160,46 @@ struct ChatMessage: Identifiable, Codable {
         case requestedDuration = "requested_duration"
         case unlockStatus = "unlock_status"
         case parentResponse = "parent_response"
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decode(UUID.self, forKey: .id)
+        senderId = try container.decode(String.self, forKey: .senderId)
+        senderName = try container.decode(String.self, forKey: .senderName)
+        receiverId = try container.decode(String.self, forKey: .receiverId)
+        receiverName = try container.decode(String.self, forKey: .receiverName)
+        messageType = try container.decode(MessageType.self, forKey: .messageType)
+        content = try container.decode(String.self, forKey: .content)
+        isRead = try container.decodeIfPresent(Bool.self, forKey: .isRead) ?? false
+        
+        // Handle timestamp decoding with fallback
+        if let timestampString = try? container.decode(String.self, forKey: .timestamp) {
+            timestamp = ISO8601DateFormatter().date(from: timestampString) ?? Date()
+        } else {
+            timestamp = Date()
+        }
+        
+        // Handle optional fields
+        unlockRequestId = try container.decodeIfPresent(String.self, forKey: .unlockRequestId)
+        appName = try container.decodeIfPresent(String.self, forKey: .appName)
+        
+        // Handle requestedDuration - might be string or int
+        if let durationString = try? container.decode(String.self, forKey: .requestedDuration) {
+            requestedDuration = Int(durationString)
+        } else {
+            requestedDuration = try container.decodeIfPresent(Int.self, forKey: .requestedDuration)
+        }
+        
+        // Handle unlockStatus
+        if let statusString = try? container.decode(String.self, forKey: .unlockStatus) {
+            unlockStatus = UnlockRequestStatus(rawValue: statusString)
+        } else {
+            unlockStatus = nil
+        }
+        
+        parentResponse = try container.decodeIfPresent(String.self, forKey: .parentResponse)
     }
 }
 
@@ -230,30 +278,39 @@ struct UnlockRequest: Identifiable, Codable {
 // MARK: - Chat Session
 
 struct ChatSession: Identifiable, Codable {
-    let id: UUID
+    let id: String // Changed from UUID to String to match database format
     let parentDeviceId: String
     let childDeviceId: String
     let childName: String
-    let lastMessageAt: Date
+    let parentName: String?
+    let lastMessageAt: Date?
     let unreadCount: Int
     let isActive: Bool
+    let createdAt: Date
+    let updatedAt: Date
     
     init(
-        id: UUID = UUID(),
+        id: String = UUID().uuidString,
         parentDeviceId: String,
         childDeviceId: String,
         childName: String,
-        lastMessageAt: Date = Date(),
+        parentName: String? = nil,
+        lastMessageAt: Date? = nil,
         unreadCount: Int = 0,
-        isActive: Bool = true
+        isActive: Bool = true,
+        createdAt: Date = Date(),
+        updatedAt: Date = Date()
     ) {
         self.id = id
         self.parentDeviceId = parentDeviceId
         self.childDeviceId = childDeviceId
         self.childName = childName
+        self.parentName = parentName
         self.lastMessageAt = lastMessageAt
         self.unreadCount = unreadCount
         self.isActive = isActive
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
     }
     
     enum CodingKeys: String, CodingKey {
@@ -261,9 +318,43 @@ struct ChatSession: Identifiable, Codable {
         case parentDeviceId = "parent_device_id"
         case childDeviceId = "child_device_id"
         case childName = "child_name"
+        case parentName = "parent_name"
         case lastMessageAt = "last_message_at"
         case unreadCount = "unread_count"
         case isActive = "is_active"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decode(String.self, forKey: .id)
+        parentDeviceId = try container.decode(String.self, forKey: .parentDeviceId)
+        childDeviceId = try container.decode(String.self, forKey: .childDeviceId)
+        childName = try container.decode(String.self, forKey: .childName)
+        parentName = try container.decodeIfPresent(String.self, forKey: .parentName)
+        unreadCount = try container.decode(Int.self, forKey: .unreadCount)
+        isActive = try container.decode(Bool.self, forKey: .isActive)
+        
+        // Handle date decoding with string fallback
+        if let lastMessageAtString = try? container.decode(String.self, forKey: .lastMessageAt) {
+            lastMessageAt = ISO8601DateFormatter().date(from: lastMessageAtString)
+        } else {
+            lastMessageAt = nil
+        }
+        
+        if let createdAtString = try? container.decode(String.self, forKey: .createdAt) {
+            createdAt = ISO8601DateFormatter().date(from: createdAtString) ?? Date()
+        } else {
+            createdAt = Date()
+        }
+        
+        if let updatedAtString = try? container.decode(String.self, forKey: .updatedAt) {
+            updatedAt = ISO8601DateFormatter().date(from: updatedAtString) ?? Date()
+        } else {
+            updatedAt = Date()
+        }
     }
 }
 
@@ -288,6 +379,18 @@ struct ChatStatistics {
         self.pendingRequests = pendingRequests
         self.approvedRequests = approvedRequests
         self.deniedRequests = deniedRequests
+    }
+}
+
+// MARK: - Parent Info
+
+struct ParentInfo: Codable {
+    let parentDeviceId: String
+    let parentName: String
+    
+    enum CodingKeys: String, CodingKey {
+        case parentDeviceId = "parent_device_id"
+        case parentName = "parent_name"
     }
 }
 

@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import Combine
+import UIKit
 
 @MainActor
 class ChatManager: ObservableObject {
@@ -44,10 +45,21 @@ class ChatManager: ObservableObject {
                 .execute()
             
             let data = response.data
+            print("[ChatManager] Raw response data: \(String(data: data, encoding: .utf8) ?? "nil")")
+            
             let sessions = try JSONDecoder().decode([ChatSession].self, from: data)
             
-            chatSessions = sessions
-            print("[ChatManager] Loaded \(sessions.count) chat sessions")
+            // Transform sessions to show the correct participant name
+            let transformedSessions = sessions.map { session in
+                transformSessionForDisplay(session, currentUserId: userId)
+            }
+            
+            chatSessions = transformedSessions
+            print("[ChatManager] Loaded \(sessions.count) chat sessions: \(transformedSessions.map { $0.childName })")
+            print("[ChatManager] Final sessions for display:")
+            for (index, session) in transformedSessions.enumerated() {
+                print("[ChatManager]   Session \(index): id=\(session.id), parent=\(session.parentDeviceId), child=\(session.childDeviceId), name=\(session.childName)")
+            }
             
         } catch {
             errorMessage = "Failed to load chat sessions: \(error.localizedDescription)"
@@ -58,68 +70,257 @@ class ChatManager: ObservableObject {
     }
     
     /// Automatically create chat sessions for registered family members
-    func createChatSessionForFamilyMember(childDeviceId: String, childName: String) async throws -> ChatSession {
+    /// This function works bidirectionally:
+    /// - If current device is parent: creates session with child
+    /// - If current device is child: creates session with parent
+    func createChatSessionForFamilyMember(otherDeviceId: String, otherDeviceName: String) async throws -> ChatSession {
         await restoreSessionFromAppGroup()
         guard let userId = SupabaseManager.shared.client.auth.currentUser?.id.uuidString else {
             throw ChatError.notAuthenticated
         }
         
+//        var currentDeviceId = UserDefaults.standard.string(forKey: "ZapDeviceId") ?? ""
+//        print("[ChatManager] Initial ZapDeviceId: '\(currentDeviceId)'")
+        
+        guard let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") else { throw ChatError.notAuthenticated }
+        var currentDeviceId = groupDefaults.string(forKey: "ZapDeviceId") ?? ""
+        
+        // Fallback to UIDevice identifier if ZapDeviceId is empty
+        if currentDeviceId.isEmpty {
+            let fallbackId = UIDevice.current.identifierForVendor?.uuidString
+            print("[ChatManager] UIDevice fallback ID: '\(fallbackId ?? "nil")'")
+            
+            if let fallbackId = fallbackId, !fallbackId.isEmpty {
+                currentDeviceId = fallbackId
+                print("[ChatManager] Using UIDevice fallback: \(currentDeviceId)")
+            } else {
+                // Generate a random UUID as last resort
+                currentDeviceId = UUID().uuidString
+                print("[ChatManager] Generated random device ID: \(currentDeviceId)")
+            }
+        }
+        
+        print("[ChatManager] Creating chat session - Current device: \(currentDeviceId), Other device: \(otherDeviceId) (\(otherDeviceName))")
+        
+        // Determine if current device is parent or child by checking parent_child relationships
+        print("[ChatManager] Checking if device \(currentDeviceId) is parent...")
+        let isCurrentDeviceParent = try await checkIfDeviceIsParent(deviceId: currentDeviceId)
+        print("[ChatManager] Device is parent: \(isCurrentDeviceParent)")
+        
+        let parentDeviceId: String
+        let childDeviceId: String
+        let childName: String
+        
+        var currentDeviceName = groupDefaults.string(forKey: "DeviceName") ?? ""
+        
+        // Fallback to device model if DeviceName is not set
+        if currentDeviceName.isEmpty {
+            currentDeviceName = UIDevice.current.model
+            print("[ChatManager] Using device model as name: \(currentDeviceName)")
+        }
+        
+        print("[ChatManager] Current device name: '\(currentDeviceName)'")
+        
+        if isCurrentDeviceParent {
+            // Current device is parent, other device is child
+            parentDeviceId = currentDeviceId
+            childDeviceId = otherDeviceId
+            childName = otherDeviceName
+            print("[ChatManager] Current device is parent, creating session with child")
+        } else {
+            // Current device is child, other device is parent
+            parentDeviceId = otherDeviceId
+            childDeviceId = currentDeviceId
+            childName = currentDeviceName // Use actual child device name
+            print("[ChatManager] Current device is child, creating session with parent")
+        }
+        
         // Check if chat session already exists
         let existingSessions = chatSessions.filter { session in
-            session.childDeviceId == childDeviceId
+            (session.parentDeviceId == parentDeviceId && session.childDeviceId == childDeviceId) ||
+            (session.parentDeviceId == childDeviceId && session.childDeviceId == parentDeviceId)
         }
         
         if !existingSessions.isEmpty {
-            print("[ChatManager] Chat session already exists for child: \(childName)")
+            print("[ChatManager] Chat session already exists between these devices")
             return existingSessions.first!
         }
         
+        let parentName = isCurrentDeviceParent ? currentDeviceName : otherDeviceName
+        print("[ChatManager] Final parent name: '\(parentName)'")
+        
+        // Ensure we have a meaningful parent name
+        let finalParentName = parentName.isEmpty ? "Parent Device" : parentName
+        print("[ChatManager] Final parent name after validation: '\(finalParentName)'")
+        
         let session = ChatSession(
-            parentDeviceId: userId,
+            parentDeviceId: parentDeviceId,
             childDeviceId: childDeviceId,
-            childName: childName
+            childName: childName,
+            parentName: finalParentName
         )
         
-        let response = try await SupabaseManager.shared.client
-            .from("chat_sessions")
-            .insert([
-                "parent_device_id": session.parentDeviceId,
-                "child_device_id": session.childDeviceId,
-                "child_name": session.childName
-            ])
-            .execute()
+        print("[ChatManager] Session created - Parent ID: '\(session.parentDeviceId)', Child ID: '\(session.childDeviceId)', Parent Name: '\(session.parentName ?? "nil")', Child Name: '\(session.childName)'")
         
-        let data = response.data
-        let createdSession = try JSONDecoder().decode([ChatSession].self, from: data).first!
+        let insertData = [
+            "parent_device_id": session.parentDeviceId,
+            "child_device_id": session.childDeviceId,
+            "child_name": session.childName,
+            "parent_name": finalParentName
+        ]
         
-        // Add to local sessions
-        chatSessions.insert(createdSession, at: 0)
+        print("[ChatManager] Inserting chat session with data: \(insertData)")
+        print("[ChatManager] Parent device ID: \(parentDeviceId)")
+        print("[ChatManager] Child device ID: \(childDeviceId)")
         
-        print("[ChatManager] Created chat session for family member: \(childName)")
-        return createdSession
+        do {
+            // Try direct insert first
+            let response = try await SupabaseManager.shared.client
+                .from("chat_sessions")
+                .insert(insertData)
+                .execute()
+            
+            let data = response.data
+            let createdSession = try JSONDecoder().decode([ChatSession].self, from: data).first!
+            
+            // Transform the session for display based on current user role
+            let transformedSession = transformSessionForDisplay(createdSession, currentUserId: userId)
+            
+            // Add to local sessions
+            chatSessions.insert(transformedSession, at: 0)
+            
+            print("[ChatManager] Successfully created chat session via direct insert")
+            return transformedSession
+            
+        } catch {
+            print("[ChatManager] Direct insert failed: \(error)")
+            print("[ChatManager] Trying fallback function...")
+            
+            do {
+                // Fallback: Use the improved RPC function
+                let response = try await SupabaseManager.shared.client
+                    .rpc("create_chat_session_simple", params: [
+                        "p_parent_device_id": parentDeviceId,
+                        "p_child_device_id": childDeviceId,
+                        "p_child_name": childName,
+                        "p_parent_name": finalParentName
+                    ])
+                    .execute()
+                
+                let data = response.data
+                print("[ChatManager] RPC response data: \(String(data: data, encoding: .utf8) ?? "nil")")
+                
+                // Decode the full session data returned by the RPC function
+                // RPC returns a single object, not an array
+                let createdSession = try JSONDecoder().decode(ChatSession.self, from: data)
+                print("[ChatManager] Successfully decoded session from RPC response: \(createdSession.id)")
+                print("[ChatManager] Created session: \(createdSession.id) for \(createdSession.childName)")
+                
+                // Transform the session for display based on current user role
+                let transformedSession = transformSessionForDisplay(createdSession, currentUserId: userId)
+                
+                // Add to local sessions
+                chatSessions.insert(transformedSession, at: 0)
+                
+                print("[ChatManager] Successfully created chat session via RPC function")
+                return transformedSession
+                
+            } catch {
+                print("[ChatManager] RPC function also failed: \(error)")
+                // If both methods fail, check if session already exists
+                if error.localizedDescription.contains("duplicate key") {
+                    print("[ChatManager] Session already exists, trying to load existing session...")
+                    // Try to load the existing session
+                    await loadChatSessions()
+                    let existingSession = chatSessions.first { session in
+                        session.childDeviceId == childDeviceId
+                    }
+                    if let existing = existingSession {
+                        print("[ChatManager] Found existing session: \(existing.id)")
+                        return existing
+                    }
+                }
+                throw error
+            }
+        }
+    }
+    
+    /// Set device name in UserDefaults for persistent storage
+    private func ensureDeviceNameIsSet() {
+        let currentDeviceName = UserDefaults.standard.string(forKey: "DeviceName") ?? ""
+        
+        if currentDeviceName.isEmpty {
+            let deviceName = UIDevice.current.model
+            UserDefaults.standard.set(deviceName, forKey: "DeviceName")
+            print("[ChatManager] Set device name in UserDefaults: \(deviceName)")
+        }
     }
     
     /// Load family members and create chat sessions automatically
+    /// This function works bidirectionally based on the current device's role
     func loadFamilyMembersAndCreateChats() async {
         await restoreSessionFromAppGroup()
-        guard let userId = SupabaseManager.shared.client.auth.currentUser?.id.uuidString else {
+        
+        // Ensure device name is set in UserDefaults
+        ensureDeviceNameIsSet()
+        
+        guard SupabaseManager.shared.client.auth.currentUser?.id.uuidString != nil else {
             print("[ChatManager] No authenticated user found")
             return
         }
         
+        guard let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") else { return }
+        let currentDeviceId = groupDefaults.string(forKey: "ZapDeviceId") ?? ""
+        
+        // Debug: Check what device ID we have
+        print("[ChatManager] Current device ID from UserDefaults: '\(currentDeviceId)'")
+        
+        // If ZapDeviceId is empty, try to get it from the device
+        let deviceId = currentDeviceId.isEmpty ? UIDevice.current.identifierForVendor?.uuidString ?? "" : currentDeviceId
+        print("[ChatManager] Using device ID: '\(deviceId)'")
+        
         do {
-            // Get family members from existing family system
-            let familyMembers = try await SupabaseManager.shared.getChildrenForParent()
+            print("[ChatManager] Loading family members...")
             
-            // Create chat sessions for each family member
-            for member in familyMembers {
-                try await createChatSessionForFamilyMember(
-                    childDeviceId: member.device_id,
-                    childName: member.child_name
-                )
+            // Determine if current device is parent or child
+            let isCurrentDeviceParent = try await checkIfDeviceIsParent(deviceId: deviceId)
+            
+            if isCurrentDeviceParent {
+                // Current device is parent - get all children
+                print("[ChatManager] Current device is parent, loading children...")
+                let familyMembers = try await SupabaseManager.shared.getChildrenForParent()
+                print("[ChatManager] Found \(familyMembers.count) children: \(familyMembers.map { $0.child_name })")
+                
+                // Create chat sessions for each child
+                for member in familyMembers {
+                    print("[ChatManager] Creating chat session for child: \(member.child_name) (ID: \(member.device_id))")
+                    _ = try await createChatSessionForFamilyMember(
+                        otherDeviceId: member.device_id,
+                        otherDeviceName: member.child_name
+                    )
+                }
+                
+                print("[ChatManager] Created chat sessions for \(familyMembers.count) children")
+                
+            } else {
+                // Current device is child - get all parents
+                print("[ChatManager] Current device is child, loading parents...")
+                let parents = try await getParentsForChild(deviceId: currentDeviceId)
+                print("[ChatManager] Found \(parents.count) parents: \(parents.map { $0.parentName })")
+                
+                // Create chat sessions for each parent
+                for parent in parents {
+                    print("[ChatManager] Creating chat session for parent: \(parent.parentName) (ID: \(parent.parentDeviceId))")
+                    _ = try await createChatSessionForFamilyMember(
+                        otherDeviceId: parent.parentDeviceId,
+                        otherDeviceName: parent.parentName
+                    )
+                }
+                
+                print("[ChatManager] Created chat sessions for \(parents.count) parents")
             }
             
-            print("[ChatManager] Created chat sessions for \(familyMembers.count) family members")
+            print("[ChatManager] Total chat sessions now: \(chatSessions.count)")
             
         } catch {
             print("[ChatManager] Error loading family members: \(error)")
@@ -128,23 +329,26 @@ class ChatManager: ObservableObject {
     
     // MARK: - Messages Management
     
-    func loadMessages(for sessionId: UUID, limit: Int = 50) async {
+    func loadMessages(for sessionId: String, limit: Int = 50) async {
         isLoading = true
         errorMessage = nil
-        currentSessionId = sessionId
+        // Clean up the sessionId by removing extra quotes
+        let cleanSessionId = sessionId.replacingOccurrences(of: "\"", with: "")
+        currentSessionId = UUID(uuidString: cleanSessionId) ?? UUID()
         
         do {
             await restoreSessionFromAppGroup()
             
             let response = try await SupabaseManager.shared.client
                 .rpc("get_chat_messages", params: [
-                    "p_session_id": sessionId.uuidString,
+                    "p_session_id": cleanSessionId,
                     "p_limit": String(limit),
                     "p_offset": "0"
                 ])
                 .execute()
             
             let data = response.data
+            print("[ChatManager] Load messages response data: \(String(data: data, encoding: .utf8) ?? "nil")")
             let messages = try JSONDecoder().decode([ChatMessage].self, from: data)
             
             // Reverse to show oldest first
@@ -159,17 +363,48 @@ class ChatManager: ObservableObject {
         isLoading = false
     }
     
-    func sendMessage(_ content: String, type: MessageType = .text, sessionId: UUID) async throws {
+    func sendMessage(_ content: String, type: MessageType = .text, sessionId: String) async throws {
         await restoreSessionFromAppGroup()
         guard let userId = SupabaseManager.shared.client.auth.currentUser?.id.uuidString else {
             throw ChatError.notAuthenticated
         }
         
+        let deviceId = UserDefaults.standard.string(forKey: "ZapDeviceId") ?? ""
         let deviceName = UserDefaults.standard.string(forKey: "DeviceName") ?? "Unknown Device"
         
+        // Clean up the sessionId by removing extra quotes
+        let cleanSessionId = sessionId.replacingOccurrences(of: "\"", with: "")
+        
+        // Get session information to determine receiver
+        let sessionResponse = try await SupabaseManager.shared.client
+            .from("chat_sessions")
+            .select()
+            .eq("id", value: cleanSessionId)
+            .single()
+            .execute()
+        
+        let sessionData = sessionResponse.data
+        let session = try JSONDecoder().decode(ChatSession.self, from: sessionData)
+        
+        // Determine receiver information based on session
+        let receiverId: String
+        let receiverName: String
+        
+        if deviceId == session.parentDeviceId {
+            // Sender is parent, receiver is child
+            receiverId = session.childDeviceId
+            receiverName = session.childName
+        } else {
+            // Sender is child, receiver is parent
+            receiverId = session.parentDeviceId
+            receiverName = "Parent"
+        }
+        
         let message = ChatMessage(
-            senderId: userId,
+            senderId: deviceId,
             senderName: deviceName,
+            receiverId: receiverId,
+            receiverName: receiverName,
             messageType: type,
             content: content
         )
@@ -177,37 +412,76 @@ class ChatManager: ObservableObject {
         let response = try await SupabaseManager.shared.client
             .from("chat_messages")
             .insert([
-                "session_id": sessionId.uuidString,
+                "session_id": cleanSessionId,
                 "sender_id": message.senderId,
                 "sender_name": message.senderName,
+                "receiver_id": message.receiverId,
+                "receiver_name": message.receiverName,
                 "message_type": message.messageType.rawValue,
                 "content": message.content
             ])
             .execute()
         
         let data = response.data
-        let createdMessage = try JSONDecoder().decode([ChatMessage].self, from: data).first!
+        print("[ChatManager] Insert response data: \(String(data: data, encoding: .utf8) ?? "nil")")
         
-        // Add to current messages
-        currentMessages.append(createdMessage)
+        // Handle the response - it might be empty when RLS is disabled
+        if data.isEmpty {
+            // Create a local message object since the response is empty
+            let localMessage = ChatMessage(
+                id: UUID(),
+                senderId: message.senderId,
+                senderName: message.senderName,
+                receiverId: message.receiverId,
+                receiverName: message.receiverName,
+                messageType: message.messageType,
+                content: message.content,
+                timestamp: Date()
+            )
+            currentMessages.append(localMessage)
+            print("[ChatManager] Created local message since response was empty")
+        } else {
+            // Try to decode the response
+            do {
+                let createdMessage = try JSONDecoder().decode([ChatMessage].self, from: data).first!
+                currentMessages.append(createdMessage)
+                print("[ChatManager] Successfully decoded response message")
+            } catch {
+                print("[ChatManager] Failed to decode response: \(error)")
+                // Create a local message as fallback
+                let localMessage = ChatMessage(
+                    id: UUID(),
+                    senderId: message.senderId,
+                    senderName: message.senderName,
+                    receiverId: message.receiverId,
+                    receiverName: message.receiverName,
+                    messageType: message.messageType,
+                    content: message.content,
+                    timestamp: Date()
+                )
+                currentMessages.append(localMessage)
+                print("[ChatManager] Created local message as fallback")
+            }
+        }
         
         // Update session last message time
-        await updateSessionLastMessage(sessionId: sessionId)
+        await updateSessionLastMessage(sessionId: cleanSessionId)
         
         print("[ChatManager] Sent message: \(content)")
     }
     
-    func sendUnlockRequest(appName: String, appBundleId: String, duration: Int, message: String?, sessionId: UUID) async throws {
+    func sendUnlockRequest(appName: String, appBundleId: String, duration: Int, message: String?, sessionId: String) async throws {
         await restoreSessionFromAppGroup()
         guard let userId = SupabaseManager.shared.client.auth.currentUser?.id.uuidString else {
             throw ChatError.notAuthenticated
         }
         
+        let deviceId = UserDefaults.standard.string(forKey: "ZapDeviceId") ?? ""
         let deviceName = UserDefaults.standard.string(forKey: "DeviceName") ?? "Unknown Device"
         
         // Create unlock request
         let unlockRequest = UnlockRequest(
-            childDeviceId: userId,
+            childDeviceId: deviceId,
             childName: deviceName,
             appName: appName,
             appBundleId: appBundleId,
@@ -230,11 +504,38 @@ class ChatManager: ObservableObject {
         let requestData = requestResponse.data
         let createdRequest = try JSONDecoder().decode([UnlockRequest].self, from: requestData).first!
         
+        // Get session information to determine receiver for unlock request message
+        let sessionResponse = try await SupabaseManager.shared.client
+            .from("chat_sessions")
+            .select()
+            .eq("id", value: sessionId)
+            .single()
+            .execute()
+        
+        let sessionData = sessionResponse.data
+        let session = try JSONDecoder().decode(ChatSession.self, from: sessionData)
+        
+        // Determine receiver information based on session
+        let receiverId: String
+        let receiverName: String
+        
+        if deviceId == session.parentDeviceId {
+            // Sender is parent, receiver is child
+            receiverId = session.childDeviceId
+            receiverName = session.childName
+        } else {
+            // Sender is child, receiver is parent
+            receiverId = session.parentDeviceId
+            receiverName = "Parent"
+        }
+        
         // Send chat message about the unlock request
         let content = "Requested to unlock \(appName) for \(duration) minutes"
         let chatMessage = ChatMessage(
-            senderId: userId,
+            senderId: deviceId,
             senderName: deviceName,
+            receiverId: receiverId,
+            receiverName: receiverName,
             messageType: .unlockRequest,
             content: content,
             unlockRequestId: createdRequest.id.uuidString,
@@ -246,9 +547,11 @@ class ChatManager: ObservableObject {
         let messageResponse = try await SupabaseManager.shared.client
             .from("chat_messages")
             .insert([
-                "session_id": sessionId.uuidString,
+                "session_id": sessionId,
                 "sender_id": chatMessage.senderId,
                 "sender_name": chatMessage.senderName,
+                "receiver_id": chatMessage.receiverId,
+                "receiver_name": chatMessage.receiverName,
                 "message_type": chatMessage.messageType.rawValue,
                 "content": chatMessage.content,
                 "unlock_request_id": chatMessage.unlockRequestId,
@@ -265,7 +568,9 @@ class ChatManager: ObservableObject {
         currentMessages.append(createdMessage)
         
         // Update session last message time
-        await updateSessionLastMessage(sessionId: sessionId)
+        // Clean up the sessionId by removing extra quotes
+        let cleanSessionId = sessionId.replacingOccurrences(of: "\"", with: "")
+        await updateSessionLastMessage(sessionId: cleanSessionId)
         
         print("[ChatManager] Sent unlock request for \(appName)")
     }
@@ -302,19 +607,19 @@ class ChatManager: ObservableObject {
         isLoading = false
     }
     
-    func respondToUnlockRequest(requestId: UUID, status: UnlockRequestStatus, response: String?) async throws {
+    func respondToUnlockRequest(requestId: String, status: UnlockRequestStatus, response: String?) async throws {
         await restoreSessionFromAppGroup()
         
         _ = try await SupabaseManager.shared.client
             .rpc("update_unlock_request_status", params: [
-                "p_request_id": requestId.uuidString,
+                "p_request_id": requestId,
                 "p_status": status.rawValue,
                 "p_parent_response": response
             ])
             .execute()
         
         // Update local pending requests
-        if let index = pendingRequests.firstIndex(where: { $0.id == requestId }) {
+        if let index = pendingRequests.firstIndex(where: { $0.id.uuidString == requestId }) {
             pendingRequests[index].status = status
             pendingRequests[index].parentResponse = response
             pendingRequests[index].respondedAt = Date()
@@ -322,7 +627,7 @@ class ChatManager: ObservableObject {
         
         // If approved, trigger the unlock
         if status == .approved {
-            if let request = pendingRequests.first(where: { $0.id == requestId }) {
+            if let request = pendingRequests.first(where: { $0.id.uuidString == requestId }) {
                 try await triggerAppUnlock(request: request)
             }
         }
@@ -332,12 +637,97 @@ class ChatManager: ObservableObject {
     
     // MARK: - Private Methods
     
-    private func updateSessionLastMessage(sessionId: UUID) async {
+    /// Check if a device is a parent by looking up parent_child relationships
+    private func checkIfDeviceIsParent(deviceId: String) async throws -> Bool {
+        
+        print("[ChatManager] checkIfDeviceIsParent: \(deviceId)")
+        
+        let response = try await SupabaseManager.shared.client
+            .from("devices")
+            .select("device_id")
+            .eq("device_id", value: deviceId)
+            .eq("is_parent", value: true)
+            .execute()
+        
+        let data = response.data
+        print("[ChatManager] checkIfDeviceIsParent - Raw response data: \(String(data: data, encoding: .utf8) ?? "nil")")
+        print("[ChatManager] checkIfDeviceIsParent - Data count: \(data.count) bytes")
+        print("[ChatManager] checkIfDeviceIsParent - Data is empty: \(data.isEmpty)")
+        
+        // Check what the raw string actually contains
+        let rawString = String(data: data, encoding: .utf8) ?? ""
+        print("[ChatManager] checkIfDeviceIsParent - Raw string length: \(rawString.count)")
+        print("[ChatManager] checkIfDeviceIsParent - Raw string is empty: \(rawString.isEmpty)")
+        
+        // Try to decode and show the actual records
+        do {
+            let records = try JSONDecoder().decode([[String: String]].self, from: data)
+            print("[ChatManager] checkIfDeviceIsParent - Decoded records: \(records)")
+            print("[ChatManager] checkIfDeviceIsParent - Records count: \(records.count)")
+            return !records.isEmpty
+        } catch {
+            print("[ChatManager] checkIfDeviceIsParent - Failed to decode records: \(error)")
+            // If decoding fails, check if it's truly empty by string content
+            return !rawString.isEmpty && rawString != "[]"
+        }
+    }
+    
+    /// Get all parents for a child device
+    private func getParentsForChild(deviceId: String) async throws -> [ParentInfo] {
+        let response = try await SupabaseManager.shared.client
+            .from("parent_child")
+            .select("parent_device_id")
+            .eq("child_device_id", value: deviceId)
+            .execute()
+        
+        let data = response.data
+        let parents = try JSONDecoder().decode([ParentInfo].self, from: data)
+        return parents
+    }
+    
+    /// Transform a session for display based on current user role
+    private func transformSessionForDisplay(_ session: ChatSession, currentUserId: String) -> ChatSession {
+        let currentDeviceId = UserDefaults.standard.string(forKey: "ZapDeviceId") ?? ""
+        
+        print("[ChatManager] Transform session - Original: parent=\(session.parentDeviceId), child=\(session.childDeviceId), name=\(session.childName)")
+        print("[ChatManager] Transform session - Current user: \(currentUserId)")
+        print("[ChatManager] Transform session - Current device: \(currentDeviceId)")
+        
+        if session.parentDeviceId == currentDeviceId {
+            // Current device is parent, show child name
+            print("[ChatManager] Transform session - Device is parent, keeping original display")
+            return session
+        } else if session.childDeviceId == currentDeviceId {
+            // Current device is child, create a session showing parent
+            print("[ChatManager] Transform session - Device is child, swapping for 'Parent' display")
+            let displayName = session.parentName ?? "Parent"
+            let transformed = ChatSession(
+                id: session.id,
+                parentDeviceId: session.childDeviceId, // Swap for display
+                childDeviceId: session.parentDeviceId, // Swap for display
+                childName: displayName, // Show parent name or "Parent" as fallback
+                parentName: session.childName, // Swap: child name becomes parent name for display
+                lastMessageAt: session.lastMessageAt,
+                unreadCount: session.unreadCount,
+                isActive: session.isActive,
+                createdAt: session.createdAt,
+                updatedAt: session.updatedAt
+            )
+            print("[ChatManager] Transform session - Transformed: parent=\(transformed.parentDeviceId), child=\(transformed.childDeviceId), name=\(transformed.childName)")
+            return transformed
+        } else {
+            // Neither parent nor child matches current device - this shouldn't happen
+            print("[ChatManager] Transform session - WARNING: Current device not found in session")
+            return session
+        }
+    }
+    
+    private func updateSessionLastMessage(sessionId: String) async {
         do {
             _ = try await SupabaseManager.shared.client
                 .from("chat_sessions")
                 .update(["last_message_at": ISO8601DateFormatter().string(from: Date())])
-                .eq("id", value: sessionId.uuidString)
+                .eq("id", value: sessionId)
                 .execute()
         } catch {
             print("[ChatManager] Failed to update session last message: \(error)")
@@ -357,7 +747,7 @@ class ChatManager: ObservableObject {
         autoRefreshTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 if let sessionId = self?.currentSessionId {
-                    await self?.loadMessages(for: sessionId)
+                    await self?.loadMessages(for: sessionId.uuidString)
                 }
                 await self?.loadPendingRequests()
             }

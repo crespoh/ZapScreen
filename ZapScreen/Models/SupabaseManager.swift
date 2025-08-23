@@ -5,6 +5,8 @@ import SwiftUI
 import os.log
 import CryptoKit
 
+// ChatSession is defined in ChatModels.swift
+
 // MARK: - Supabase Table Structs
 
 struct SupabaseDeviceInsert: Encodable {
@@ -867,7 +869,7 @@ class SupabaseManager {
             }
             
             // Create new chat session
-            let response = try await client
+            _ = try await client
                 .from("chat_sessions")
                 .insert([
                     "parent_device_id": userId,
@@ -1282,7 +1284,7 @@ class SupabaseManager {
         let hashedPasscode = hashPasscode(passcode)
         
         do {
-            let response = try await client
+            _ = try await client
                 .from("child_passcodes")
                 .upsert([
                     "user_account_id": userId,
@@ -1345,7 +1347,7 @@ class SupabaseManager {
         // Hash the passcode before storing
         let hashedPasscode = hashPasscode(newPasscode)
         
-        let response = try await client
+        _ = try await client
             .from("child_passcodes")
             .upsert([
                 "user_account_id": userId,
