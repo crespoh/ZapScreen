@@ -1108,7 +1108,7 @@ class SupabaseManager {
         
         let response = try await client
             .from("devices")
-            .select("child_name")
+            .select("device_owner")
             .eq("device_id", value: deviceId)
             .eq("user_account_id", value: userId)
             .single()
@@ -1116,7 +1116,7 @@ class SupabaseManager {
         
         let data = response.data
         let result = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-        return result?["child_name"] as? String
+        return result?["device_owner"] as? String
     }
     
     // MARK: - Shield Settings Management

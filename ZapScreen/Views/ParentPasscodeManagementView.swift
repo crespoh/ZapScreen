@@ -346,10 +346,14 @@ struct ChangeChildPasscodeView: View {
                     childDeviceId: childDevice.deviceId
                 )
                 
-                // Update local storage
+                // Get current device_owner name from Supabase
+                let supabaseChildren = try await SupabaseManager.shared.getChildrenForParent()
+                let currentChildName = supabaseChildren.first(where: { $0.device_id == childDevice.deviceId })?.device_owner ?? childDevice.childName
+                
+                // Update local storage with current name from Supabase
                 let updatedPasscodeData = ChildPasscodeData(
                     deviceId: childDevice.deviceId,
-                    childName: childDevice.childName,
+                    childName: currentChildName, // Use current name from Supabase
                     passcode: newPasscode,
                     savedAt: Date()
                 )
@@ -399,22 +403,66 @@ class ParentPasscodeManagementViewModel: ObservableObject {
     func loadChildDevices() async {
         isLoading = true
         
-        // Load child devices from local storage
-        var devices: [ChildPasscodeData] = []
-        
-        for key in UserDefaults.standard.dictionaryRepresentation().keys {
-            if key.hasPrefix("ChildPasscode_") {
-                if let data = UserDefaults.standard.data(forKey: key),
-                   let passcodeData = try? JSONDecoder().decode(ChildPasscodeData.self, from: data) {
-                    devices.append(passcodeData)
+        do {
+            // Get child devices from Supabase with current device_owner names
+            let supabaseChildren = try await SupabaseManager.shared.getChildrenForParent()
+            print("[ParentPasscodeManagementViewModel] Retrieved \(supabaseChildren.count) children from Supabase")
+            
+            // Load child passcodes from local storage and match with Supabase data
+            var devices: [ChildPasscodeData] = []
+            
+            for key in UserDefaults.standard.dictionaryRepresentation().keys {
+                if key.hasPrefix("ChildPasscode_") {
+                    if let data = UserDefaults.standard.data(forKey: key),
+                       let passcodeData = try? JSONDecoder().decode(ChildPasscodeData.self, from: data) {
+                        
+                        // Find matching device in Supabase data to get current device_owner name
+                        if let supabaseChild = supabaseChildren.first(where: { $0.device_id == passcodeData.deviceId }) {
+                            // Create updated passcode data with current device_owner name from Supabase
+                            let updatedPasscodeData = ChildPasscodeData(
+                                deviceId: passcodeData.deviceId,
+                                childName: supabaseChild.device_owner, // Use current name from Supabase
+                                passcode: passcodeData.passcode,
+                                savedAt: passcodeData.savedAt
+                            )
+                            devices.append(updatedPasscodeData)
+                            print("[ParentPasscodeManagementViewModel] Matched device \(passcodeData.deviceId) with name: \(supabaseChild.device_owner)")
+                        } else {
+                            // If no match found in Supabase, keep local data but log warning
+                            devices.append(passcodeData)
+                            print("[ParentPasscodeManagementViewModel] Warning: Device \(passcodeData.deviceId) not found in Supabase, using local name: \(passcodeData.childName)")
+                        }
+                    }
                 }
             }
+            
+            // Sort by saved date (newest first)
+            devices.sort { $0.savedAt > $1.savedAt }
+            
+            childDevices = devices
+            print("[ParentPasscodeManagementViewModel] Loaded \(devices.count) child devices with passcodes")
+            
+        } catch {
+            print("[ParentPasscodeManagementViewModel] Failed to load children from Supabase: \(error)")
+            
+            // Fallback to local storage only
+            var devices: [ChildPasscodeData] = []
+            
+            for key in UserDefaults.standard.dictionaryRepresentation().keys {
+                if key.hasPrefix("ChildPasscode_") {
+                    if let data = UserDefaults.standard.data(forKey: key),
+                       let passcodeData = try? JSONDecoder().decode(ChildPasscodeData.self, from: data) {
+                        devices.append(passcodeData)
+                    }
+                }
+            }
+            
+            // Sort by saved date (newest first)
+            devices.sort { $0.savedAt > $1.savedAt }
+            
+            childDevices = devices
         }
         
-        // Sort by saved date (newest first)
-        devices.sort { $0.savedAt > $1.savedAt }
-        
-        childDevices = devices
         isLoading = false
     }
     
