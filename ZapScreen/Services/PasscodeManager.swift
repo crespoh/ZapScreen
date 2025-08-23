@@ -72,10 +72,10 @@ class PasscodeManager: ObservableObject {
     
     /// Save an already-hashed passcode from Supabase (no rehashing needed)
     private func saveHashedPasscode(_ hashedPasscode: String) async throws {
-        // Generate a new salt for the local storage
-        let salt = generateSalt()
+        // Get the salt from Supabase along with the hashed passcode
+        let salt = try await getSaltFromSupabase()
         
-        // Save locally with the hashed passcode from Supabase
+        // Save locally with the hashed passcode and salt from Supabase
         let settings = PasscodeSettings(
             hashedPasscode: hashedPasscode,
             salt: salt,
@@ -96,7 +96,7 @@ class PasscodeManager: ObservableObject {
             self?.startIdleTimer()
         }
         
-        print("[PasscodeManager] Hashed passcode saved from Supabase successfully")
+        print("[PasscodeManager] Hashed passcode and salt saved from Supabase successfully")
     }
     
     /// Force lock the device immediately (useful after passcode setup)
@@ -360,6 +360,13 @@ class PasscodeManager: ObservableObject {
     private func getCurrentDeviceId() -> String {
         let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
         return groupDefaults?.string(forKey: "ZapDeviceId") ?? ""
+    }
+    
+    /// Get the salt from Supabase for passcode validation
+    private func getSaltFromSupabase() async throws -> String {
+        let deviceId = getCurrentDeviceId()
+        let salt = try await SupabaseManager.shared.getSaltForDevice(deviceId: deviceId)
+        return salt
     }
     
     // MARK: - Local Storage

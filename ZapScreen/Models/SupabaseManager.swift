@@ -1321,8 +1321,11 @@ class SupabaseManager {
             print("[SupabaseManager] No existing passcode found for device: \(deviceId), creating new...")
         }
         
-        // Hash the passcode before storing
-        let hashedPasscode = hashPasscode(passcode)
+        // Generate a salt for the passcode (same method as PasscodeManager)
+        let salt = generateSalt()
+        
+        // Hash the passcode with salt (same method as PasscodeManager)
+        let hashedPasscode = hashPasscode(passcode, salt: salt)
         
         do {
             _ = try await client
@@ -1331,12 +1334,13 @@ class SupabaseManager {
                     "user_account_id": userId,
                     "child_device_id": deviceId,
                     "hashed_passcode": hashedPasscode,
+                    "salt": salt,  // ✅ Store the salt for child device
                     "created_at": ISO8601DateFormatter().string(from: Date()),
                     "updated_at": ISO8601DateFormatter().string(from: Date())
                 ], onConflict: "user_account_id,child_device_id")
                 .execute()
             
-            print("[SupabaseManager] Successfully synced child passcode for device: \(deviceId)")
+            print("[SupabaseManager] Successfully synced child passcode for device: \(deviceId) with salt")
         } catch {
             print("[SupabaseManager] Failed to sync child passcode: \(error)")
             print("[SupabaseManager] User ID: \(userId), Device ID: \(deviceId)")
@@ -1385,8 +1389,11 @@ class SupabaseManager {
         
         print("[SupabaseManager] Updating child passcode for device: \(childDeviceId)")
         
-        // Hash the passcode before storing
-        let hashedPasscode = hashPasscode(newPasscode)
+        // Generate a salt for the passcode (same method as PasscodeManager)
+        let salt = generateSalt()
+        
+        // Hash the passcode with salt (same method as PasscodeManager)
+        let hashedPasscode = hashPasscode(newPasscode, salt: salt)
         
         _ = try await client
             .from("child_passcodes")
@@ -1394,12 +1401,13 @@ class SupabaseManager {
                 "user_account_id": userId,
                 "child_device_id": childDeviceId,
                 "hashed_passcode": hashedPasscode,
+                "salt": salt,  // ✅ Store the salt for child device
                 "created_at": ISO8601DateFormatter().string(from: Date()),
                 "updated_at": ISO8601DateFormatter().string(from: Date())
             ], onConflict: "user_account_id,child_device_id")
             .execute()
         
-        print("[SupabaseManager] Successfully updated child passcode for device: \(childDeviceId)")
+        print("[SupabaseManager] Successfully updated child passcode for device: \(childDeviceId) with salt")
     }
     
     /// Reset child device passcode (remove from Supabase)
@@ -1421,13 +1429,52 @@ class SupabaseManager {
         print("[SupabaseManager] Successfully reset child passcode for device: \(deviceId)")
     }
     
+    /// Get the salt for a child device from Supabase
+    func getSaltForDevice(deviceId: String) async throws -> String {
+        await restoreSessionFromAppGroup()
+        guard let userId = client.auth.currentUser?.id.uuidString else {
+            throw NSError(domain: "SupabaseManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "No logged-in user found"])
+        }
+        
+        print("[SupabaseManager] Getting salt for device: \(deviceId)")
+        
+        let response = try await client
+            .from("child_passcodes")
+            .select("salt")
+            .eq("user_account_id", value: userId)
+            .eq("child_device_id", value: deviceId)
+            .order("updated_at", ascending: false)
+            .limit(1)
+            .execute()
+        
+        let data = response.data
+        print("[SupabaseManager] Salt response: \(String(data: data, encoding: .utf8) ?? "nil")")
+        
+        // Parse the response to get the salt
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
+           let firstRecord = json.first,
+           let salt = firstRecord["salt"] as? String {
+            print("[SupabaseManager] Retrieved salt for device: \(deviceId)")
+            return salt
+        } else {
+            throw NSError(domain: "SupabaseManager", code: 404, userInfo: [NSLocalizedDescriptionKey: "Salt not found for device"])
+        }
+    }
+    
     // MARK: - Utility Methods
     
-    /// Hash a passcode using SHA256
-    private func hashPasscode(_ passcode: String) -> String {
-        let data = passcode.data(using: .utf8)!
+    /// Hash a passcode using SHA256 with salt (same method as PasscodeManager)
+    private func hashPasscode(_ passcode: String, salt: String) -> String {
+        let combined = passcode + salt
+        let data = combined.data(using: .utf8)!
         let hash = SHA256.hash(data: data)
         return hash.compactMap { String(format: "%02x", $0) }.joined()
+    }
+
+    /// Generate a random salt for passcode hashing
+    private func generateSalt() -> String {
+        let letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        return String((0..<16).map { _ in letters.randomElement()! })
     }
 }
 
@@ -1439,6 +1486,7 @@ struct ChildPasscode: Codable {
     let userAccountId: String
     let childDeviceId: String
     let hashedPasscode: String
+    let salt: String // Added salt to the struct
     let createdAt: String
     let updatedAt: String
     
@@ -1447,6 +1495,7 @@ struct ChildPasscode: Codable {
         case userAccountId = "user_account_id"
         case childDeviceId = "child_device_id"
         case hashedPasscode = "hashed_passcode"
+        case salt = "salt" // Added salt to the enum
         case createdAt = "created_at"
         case updatedAt = "updated_at"
     }
