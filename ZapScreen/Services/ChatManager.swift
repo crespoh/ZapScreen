@@ -372,8 +372,15 @@ class ChatManager: ObservableObject {
             print("[ChatManager] Load messages response data: \(String(data: data, encoding: .utf8) ?? "nil")")
             let messages = try JSONDecoder().decode([ChatMessage].self, from: data)
             
-            // Reverse to show oldest first
-            currentMessages = messages.reversed()
+            // Debug timestamps
+            for (index, message) in messages.enumerated() {
+                print("[ChatManager] Message \(index): timestamp = \(message.timestamp), formatted = \(message.formattedTimestamp)")
+            }
+            
+            // The database now returns messages in ASC order (oldest first), so we can use them directly
+            // This ensures chronological order: oldest messages at top, newest at bottom
+            currentMessages = messages
+            print("[ChatManager] Using messages in chronological order (oldest first)")
             print("[ChatManager] Loaded \(messages.count) messages for session: \(sessionId)")
             
         } catch {
@@ -462,7 +469,7 @@ class ChatManager: ObservableObject {
                 receiverName: message.receiverName,
                 messageType: message.messageType,
                 content: message.content,
-                timestamp: Date()
+                timestamp: Date() // Use current time for local message
             )
             currentMessages.append(localMessage)
             print("[ChatManager] Created local message since response was empty")
@@ -471,7 +478,7 @@ class ChatManager: ObservableObject {
             do {
                 let createdMessage = try JSONDecoder().decode([ChatMessage].self, from: data).first!
                 currentMessages.append(createdMessage)
-                print("[ChatManager] Successfully decoded response message")
+                print("[ChatManager] Successfully decoded response message with timestamp: \(createdMessage.timestamp)")
             } catch {
                 print("[ChatManager] Failed to decode response: \(error)")
                 // Create a local message as fallback
@@ -483,7 +490,7 @@ class ChatManager: ObservableObject {
                     receiverName: message.receiverName,
                     messageType: message.messageType,
                     content: message.content,
-                    timestamp: Date()
+                    timestamp: Date() // Use current time for local message
                 )
                 currentMessages.append(localMessage)
                 print("[ChatManager] Created local message as fallback")

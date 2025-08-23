@@ -174,11 +174,34 @@ struct ChatMessage: Identifiable, Codable {
         content = try container.decode(String.self, forKey: .content)
         isRead = try container.decodeIfPresent(Bool.self, forKey: .isRead) ?? false
         
-        // Handle timestamp decoding with fallback
+        // Handle timestamp decoding - CRITICAL: Must use database timestamp, not current time
         if let timestampString = try? container.decode(String.self, forKey: .timestamp) {
-            timestamp = ISO8601DateFormatter().date(from: timestampString) ?? Date()
+            // Configure ISO8601DateFormatter to handle microseconds and timezone
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            
+            if let parsedTimestamp = formatter.date(from: timestampString) {
+                timestamp = parsedTimestamp
+                print("[ChatMessage] Successfully decoded timestamp: \(timestampString) -> \(parsedTimestamp)")
+            } else {
+                // If we can't parse the timestamp, this is a serious error - don't use current time
+                print("[ChatMessage] ERROR: Failed to parse timestamp string: \(timestampString)")
+                throw DecodingError.dataCorruptedError(
+                    forKey: CodingKeys.timestamp,
+                    in: container,
+                    debugDescription: "Invalid timestamp format: \(timestampString)"
+                )
+            }
         } else {
-            timestamp = Date()
+            // If no timestamp field, this is a serious error - don't use current time
+            print("[ChatMessage] ERROR: Missing timestamp field in database response")
+            throw DecodingError.keyNotFound(
+                CodingKeys.timestamp,
+                DecodingError.Context(
+                    codingPath: container.codingPath,
+                    debugDescription: "Timestamp field is required but missing"
+                )
+            )
         }
         
         // Handle optional fields
@@ -337,23 +360,36 @@ struct ChatSession: Identifiable, Codable {
         unreadCount = try container.decode(Int.self, forKey: .unreadCount)
         isActive = try container.decode(Bool.self, forKey: .isActive)
         
-        // Handle date decoding with string fallback
+                // Handle date decoding with string fallback - Configure formatter for microseconds
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        
         if let lastMessageAtString = try? container.decode(String.self, forKey: .lastMessageAt) {
-            lastMessageAt = ISO8601DateFormatter().date(from: lastMessageAtString)
+            lastMessageAt = formatter.date(from: lastMessageAtString)
         } else {
             lastMessageAt = nil
         }
         
         if let createdAtString = try? container.decode(String.self, forKey: .createdAt) {
-            createdAt = ISO8601DateFormatter().date(from: createdAtString) ?? Date()
+            if let parsedCreatedAt = formatter.date(from: createdAtString) {
+                createdAt = parsedCreatedAt
+            } else {
+                print("[ChatSession] WARNING: Failed to parse created_at: \(createdAtString)")
+                createdAt = Date() // Only use current time for creation date if parsing fails
+            }
         } else {
-            createdAt = Date()
+            createdAt = Date() // Only use current time for creation date if field is missing
         }
         
         if let updatedAtString = try? container.decode(String.self, forKey: .updatedAt) {
-            updatedAt = ISO8601DateFormatter().date(from: updatedAtString) ?? Date()
+            if let parsedUpdatedAt = formatter.date(from: updatedAtString) {
+                updatedAt = parsedUpdatedAt
+            } else {
+                print("[ChatSession] WARNING: Failed to parse updated_at: \(updatedAtString)")
+                updatedAt = Date() // Only use current time for update date if parsing fails
+            }
         } else {
-            updatedAt = Date()
+            updatedAt = Date() // Only use current time for update date if field is missing
         }
     }
 }

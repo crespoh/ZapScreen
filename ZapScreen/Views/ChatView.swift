@@ -86,17 +86,14 @@ struct ChatView: View {
             }
             .navigationBarHidden(true)
             // Remove manual chat creation - chats are auto-created for family members
-            .background(
-                NavigationLink(
-                    destination: selectedSession.map { ChatDetailView(session: $0) },
-                    isActive: Binding(
-                        get: { selectedSession != nil },
-                        set: { if !$0 { selectedSession = nil } }
-                    )
-                ) {
-                    EmptyView()
+            .navigationDestination(isPresented: Binding(
+                get: { selectedSession != nil },
+                set: { if !$0 { selectedSession = nil } }
+            )) {
+                if let session = selectedSession {
+                    ChatDetailView(session: session)
                 }
-            )
+            }
             .onAppear {
                 Task {
                     print("[ChatView] onAppear - Starting chat session loading...")
@@ -281,11 +278,11 @@ struct ChatDetailView: View {
                         .padding(.top, 8)
                     }
                     .onChange(of: chatManager.currentMessages.count) { _ in
-                        if let lastMessage = chatManager.currentMessages.last {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                proxy.scrollTo(lastMessage.id, anchor: .bottom)
-                            }
-                        }
+                        scrollToLatestMessage(proxy: proxy)
+                    }
+                    .onAppear {
+                        // Scroll to latest message when view appears
+                        scrollToLatestMessage(proxy: proxy)
                     }
                 }
             }
@@ -317,23 +314,44 @@ struct ChatDetailView: View {
                 await chatManager.loadMessages(for: session.id)
             }
         }
+        .refreshable {
+            await chatManager.loadMessages(for: session.id)
+        }
     }
     
     private func sendMessage() {
         guard messageInput.isValid else { return }
         
+        // Store the message text before clearing
+        let messageText = messageInput.text
+        
+        // Clear the input immediately for better UX
+        messageInput.clear()
+        
         Task {
             do {
                 try await chatManager.sendMessage(
-                    messageInput.text,
+                    messageText,
                     sessionId: session.id
                 )
-                
-                await MainActor.run {
-                    messageInput.clear()
-                }
             } catch {
                 print("[ChatDetailView] Failed to send message: \(error)")
+                // Restore the message text if sending failed
+                await MainActor.run {
+                    messageInput.text = messageText
+                }
+            }
+        }
+    }
+    
+    private func scrollToLatestMessage(proxy: ScrollViewProxy) {
+        guard !chatManager.currentMessages.isEmpty else { return }
+        
+        if let lastMessage = chatManager.currentMessages.last {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                }
             }
         }
     }

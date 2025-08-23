@@ -7,6 +7,16 @@ import CryptoKit
 
 // ChatSession is defined in ChatModels.swift
 
+// MARK: - ISO8601 Date Parsing Helper
+
+/// Helper function to parse ISO8601 dates with microseconds support
+/// Supabase returns timestamps like: "2025-08-23T07:16:40.24003+00:00"
+func parseISO8601Date(_ dateString: String) -> Date? {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return formatter.date(from: dateString)
+}
+
 // MARK: - Supabase Table Structs
 
 struct SupabaseDeviceInsert: Encodable {
@@ -31,13 +41,13 @@ struct SupabaseDevice: Codable, Identifiable {
     
     // Optional: Convert created_at to Date
     var createdAtDate: Date? {
-        ISO8601DateFormatter().date(from: created_at)
+        parseISO8601Date(created_at)
     }
     
     // Optional: Convert updated_at to Date
     var updatedAtDate: Date? {
         guard let updated_at = updated_at else { return nil }
-        return ISO8601DateFormatter().date(from: updated_at)
+        return parseISO8601Date(updated_at)
     }
 }
 
@@ -50,7 +60,7 @@ struct SupabaseParentChild: Codable, Identifiable {
     
     // Optional: Convert created_at to Date
     var createdAtDate: Date? {
-        ISO8601DateFormatter().date(from: created_at)
+        parseISO8601Date(created_at)
     }
 }
 
@@ -73,7 +83,7 @@ struct SupabaseFamilySummary: Codable, Identifiable {
     
     var lastActivityDate: Date? {
         guard let last_activity = last_activity else { return nil }
-        return ISO8601DateFormatter().date(from: last_activity)
+        return parseISO8601Date(last_activity)
     }
     
     // Computed property for Identifiable - use device_id as the identifier
@@ -88,7 +98,7 @@ struct SupabaseChildDevice: Codable, Identifiable {
     let created_at: String
     
     var createdAtDate: Date? {
-        ISO8601DateFormatter().date(from: created_at)
+        parseISO8601Date(created_at)
     }
     
     // Computed property for Identifiable - use device_id as the identifier
@@ -103,7 +113,7 @@ struct SupabaseParentDevice: Codable, Identifiable {
     let created_at: String
     
     var createdAtDate: Date? {
-        ISO8601DateFormatter().date(from: created_at)
+        parseISO8601Date(created_at)
     }
     
     // Computed property for Identifiable - use device_id as the identifier
@@ -129,17 +139,17 @@ struct SupabaseShieldSetting: Codable, Identifiable {
     /// Convert unlock_expiry string to Date
     var unlockExpiryDate: Date? {
         guard let unlock_expiry = unlock_expiry else { return nil }
-        return ISO8601DateFormatter().date(from: unlock_expiry)
+        return parseISO8601Date(unlock_expiry)
     }
     
     /// Convert created_at string to Date
     var createdAtDate: Date? {
-        ISO8601DateFormatter().date(from: created_at)
+        parseISO8601Date(created_at)
     }
     
     /// Convert updated_at string to Date
     var updatedAtDate: Date? {
-        ISO8601DateFormatter().date(from: updated_at)
+        parseISO8601Date(updated_at)
     }
     
     /// Check if the shield setting is expired (for temporary shields)
