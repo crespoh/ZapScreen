@@ -159,132 +159,128 @@ struct ChangeChildPasscodeView: View {
     @State private var showingError = false
     @State private var errorMessage = ""
     @State private var isChanging = false
+    @State private var passcodeMismatch = false
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
-                // Header
-                VStack(spacing: 8) {
-                    Image(systemName: "lock.shield")
-                        .font(.system(size: 50))
-                        .foregroundColor(.blue)
-                    
-                    Text("Change Passcode")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    
-                    Text("Set new passcode for \(childDevice.childName)'s device")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-                .padding(.top, 20)
-                
-                // Device Information
-                VStack(spacing: 8) {
-                    infoRow(title: "Child Name", value: childDevice.childName)
-                    infoRow(title: "Device ID", value: childDevice.deviceId)
-                }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(.systemGray6))
-                )
-                .padding(.horizontal)
-                
-                // New Passcode Entry
-                VStack(spacing: 12) {
-                    Text("New Passcode")
-                        .font(.headline)
-                    
-                    HStack(spacing: 12) {
-                        ForEach(0..<4, id: \.self) { index in
-                            Circle()
-                                .fill(index < newPasscode.count ? Color.blue : Color.gray.opacity(0.3))
-                                .frame(width: 20, height: 20)
-                                .overlay(
-                                    Text(index < newPasscode.count ? "•" : "")
-                                        .font(.title2)
-                                        .foregroundColor(.white)
-                                )
+            GeometryReader { geometry in
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Header
+                        VStack(spacing: 8) {
+                            Image(systemName: "lock.shield")
+                                .font(.system(size: 50))
+                                .foregroundColor(.blue)
+                            
+                            Text("Change Passcode")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                            
+                            Text("Set new passcode for \(childDevice.childName)'s device")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
                         }
-                    }
-                    
-                    Text("Enter 4-digit passcode")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                // Confirm Passcode Entry
-                VStack(spacing: 12) {
-                    Text("Confirm Passcode")
-                        .font(.headline)
-                    
-                    HStack(spacing: 12) {
-                        ForEach(0..<4, id: \.self) { index in
-                            Circle()
-                                .fill(index < confirmPasscode.count ? Color.blue : Color.gray.opacity(0.3))
-                                .frame(width: 20, height: 20)
-                                .overlay(
-                                    Text(index < confirmPasscode.count ? "•" : "")
-                                        .font(.title2)
-                                        .foregroundColor(.white)
-                                )
+                        .padding(.top, geometry.safeAreaInsets.top + 20)
+                        
+                        // New Passcode Entry
+                        VStack(spacing: 12) {
+                            Text("New Passcode")
+                                .font(.headline)
+                            
+                            HStack(spacing: 12) {
+                                ForEach(0..<4, id: \.self) { index in
+                                    Circle()
+                                        .fill(index < newPasscode.count ? Color.blue : Color.gray.opacity(0.3))
+                                        .frame(width: 20, height: 20)
+                                        .overlay(
+                                            Text(index < newPasscode.count ? "•" : "")
+                                                .font(.title2)
+                                                .foregroundColor(.white)
+                                        )
+                                }
+                            }
                         }
-                    }
-                    
-                    Text("Re-enter 4-digit passcode")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                // Numeric Keypad
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 15) {
-                    ForEach(1...9, id: \.self) { number in
-                        NumberButton(number: "\(number)") {
-                            addDigit("\(number)")
+                        
+                        // Confirm Passcode Entry
+                        VStack(spacing: 12) {
+                            Text("Confirm Passcode")
+                                .font(.headline)
+                            
+                            HStack(spacing: 12) {
+                                ForEach(0..<4, id: \.self) { index in
+                                    Circle()
+                                        .fill(index < confirmPasscode.count ? Color.blue : Color.gray.opacity(0.3))
+                                        .frame(width: 20, height: 20)
+                                        .overlay(
+                                            Text(index < confirmPasscode.count ? "•" : "")
+                                                .font(.title2)
+                                                .foregroundColor(.white)
+                                        )
+                                }
+                            }
                         }
-                        .disabled(isChanging)
+                        
+                        // Error message for passcode mismatch
+                        if passcodeMismatch {
+                            Text("Passcodes do not match")
+                                .font(.caption)
+                                .foregroundColor(.red)
+                                .padding(.top, 8)
+                        }
+                        
+                        // Numeric Keypad
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 15) {
+                            ForEach(1...9, id: \.self) { number in
+                                NumberButton(number: "\(number)") {
+                                    addDigit("\(number)")
+                                }
+                                .disabled(isChanging)
+                            }
+                            
+                            // Bottom row: Clear, 0, Delete
+                            Button("Clear") {
+                                clearPasscodes()
+                            }
+                            .buttonStyle(NumberButtonStyle())
+                            .foregroundColor(.red)
+                            .disabled(isChanging)
+                            
+                            NumberButton(number: "0") {
+                                addDigit("0")
+                            }
+                            .disabled(isChanging)
+                            
+                            Button("⌫") {
+                                deleteLastDigit()
+                            }
+                            .buttonStyle(NumberButtonStyle())
+                            .foregroundColor(.orange)
+                            .disabled(isChanging)
+                        }
+                        .padding(.horizontal, max(40, geometry.size.width * 0.1))
+                        
+                        // Change Button
+                        Button("Change Passcode") {
+                            changePasscode()
+                        }
+                        .buttonStyle(PrimaryButtonStyle())
+                        .disabled(newPasscode.count != 4 || confirmPasscode.count != 4 || isChanging)
+                        .padding(.top, 20)
+                        
+                        if isChanging {
+                            ProgressView("Changing passcode...")
+                                .padding(.top, 10)
+                        }
+                        
+                        // Bottom spacing to account for safe area
+                        Color.clear
+                            .frame(height: geometry.safeAreaInsets.bottom + 20)
                     }
-                    
-                    // Bottom row: Clear, 0, Delete
-                    Button("Clear") {
-                        clearPasscodes()
-                    }
-                    .buttonStyle(NumberButtonStyle())
-                    .foregroundColor(.red)
-                    .disabled(isChanging)
-                    
-                    NumberButton(number: "0") {
-                        addDigit("0")
-                    }
-                    .disabled(isChanging)
-                    
-                    Button("⌫") {
-                        deleteLastDigit()
-                    }
-                    .buttonStyle(NumberButtonStyle())
-                    .foregroundColor(.orange)
-                    .disabled(isChanging)
+                    .padding(.horizontal)
                 }
-                .padding(.horizontal, 40)
-                
-                // Change Button
-                Button("Change Passcode") {
-                    changePasscode()
-                }
-                .buttonStyle(PrimaryButtonStyle())
-                .disabled(newPasscode.count != 4 || confirmPasscode.count != 4 || newPasscode != confirmPasscode || isChanging)
-                .padding(.top, 20)
-                
-                if isChanging {
-                    ProgressView("Changing passcode...")
-                        .padding(.top, 10)
-                }
-                
-                Spacer()
+                .scrollIndicators(.hidden)
             }
-            .padding()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -307,6 +303,11 @@ struct ChangeChildPasscodeView: View {
         } else if confirmPasscode.count < 4 {
             confirmPasscode += digit
         }
+        
+        // Clear mismatch error when user starts typing again
+        if passcodeMismatch {
+            passcodeMismatch = false
+        }
     }
     
     private func deleteLastDigit() {
@@ -315,18 +316,23 @@ struct ChangeChildPasscodeView: View {
         } else if !newPasscode.isEmpty {
             newPasscode.removeLast()
         }
+        
+        // Clear mismatch error when user starts editing
+        if passcodeMismatch {
+            passcodeMismatch = false
+        }
     }
     
     private func clearPasscodes() {
         newPasscode = ""
         confirmPasscode = ""
+        passcodeMismatch = false
     }
     
     private func changePasscode() {
         guard newPasscode.count == 4 && confirmPasscode.count == 4 else { return }
         guard newPasscode == confirmPasscode else {
-            errorMessage = "Passcodes do not match"
-            showingError = true
+            passcodeMismatch = true
             return
         }
         
