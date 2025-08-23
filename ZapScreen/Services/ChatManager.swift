@@ -289,14 +289,14 @@ class ChatManager: ObservableObject {
                 // Current device is parent - get all children
                 print("[ChatManager] Current device is parent, loading children...")
                 let familyMembers = try await SupabaseManager.shared.getChildrenForParent()
-                print("[ChatManager] Found \(familyMembers.count) children: \(familyMembers.map { $0.child_name })")
+                print("[ChatManager] Found \(familyMembers.count) children: \(familyMembers.map { $0.device_owner })")
                 
                 // Create chat sessions for each child
                 for member in familyMembers {
-                    print("[ChatManager] Creating chat session for child: \(member.child_name) (ID: \(member.device_id))")
+                    print("[ChatManager] Creating chat session for child: \(member.device_owner) (ID: \(member.device_id))")
                     _ = try await createChatSessionForFamilyMember(
                         otherDeviceId: member.device_id,
-                        otherDeviceName: member.child_name
+                        otherDeviceName: member.device_owner
                     )
                 }
                 

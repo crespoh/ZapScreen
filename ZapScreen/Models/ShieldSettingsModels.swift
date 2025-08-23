@@ -13,7 +13,7 @@ import ManagedSettings
 /// Summary of shield settings for a child device
 public struct ChildShieldSummary: Codable, Identifiable {
     public let child_device_id: String
-    public let child_name: String
+    public let device_owner: String // Renamed from child_name to device_owner
     public let total_apps: Int
     public let shielded_apps: Int
     public let unshielded_apps: Int
@@ -60,7 +60,7 @@ public struct ShieldSettingChange: Codable, Identifiable {
     public let id: UUID
     public let timestamp: Date
     public let child_device_id: String
-    public let child_name: String
+    public let device_owner: String // Renamed from child_name to device_owner
     public let app_name: String
     public let bundle_identifier: String
     public let change_type: ShieldChangeType
@@ -72,7 +72,7 @@ public struct ShieldSettingChange: Codable, Identifiable {
         self.id = UUID()
         self.timestamp = timestamp
         self.child_device_id = childDeviceId
-        self.child_name = childName
+        self.device_owner = childName
         self.app_name = appName
         self.bundle_identifier = bundleIdentifier
         self.change_type = changeType

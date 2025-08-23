@@ -15,7 +15,7 @@ struct SupabaseDeviceInsert: Encodable {
     let device_name: String
     let is_parent: Bool
     let user_account_id: String
-    let child_name: String? // New: child name for child devices
+    let device_owner: String? // Renamed from child_name to device_owner
 }
 
 struct SupabaseDevice: Codable, Identifiable {
@@ -25,7 +25,7 @@ struct SupabaseDevice: Codable, Identifiable {
     let device_name: String
     let is_parent: Bool
     let user_account_id: String
-    let child_name: String? // New: child name for child devices
+    let device_owner: String? // Renamed from child_name to device_owner
     let created_at: String
     let updated_at: String? // New: updated timestamp
     
@@ -63,7 +63,7 @@ struct SupabaseParentChildInsert: Encodable {
 // MARK: - Multi-Child Support Models
 
 struct SupabaseFamilySummary: Codable, Identifiable {
-    let child_name: String
+    let device_owner: String // Renamed from child_name to device_owner
     let device_name: String
     let device_id: String
     let total_apps: Int
@@ -81,7 +81,7 @@ struct SupabaseFamilySummary: Codable, Identifiable {
 }
 
 struct SupabaseChildDevice: Codable, Identifiable {
-    let child_name: String
+    let device_owner: String // Renamed from child_name to device_owner
     let device_name: String
     let device_id: String
     let device_token: String?
@@ -102,7 +102,7 @@ struct SupabaseShieldSetting: Codable, Identifiable {
     let id: String
     let user_account_id: String
     let child_device_id: String
-    let child_name: String
+    let device_owner: String // Renamed from child_name to device_owner
     let app_name: String
     let bundle_identifier: String
     let is_shielded: Bool
@@ -167,7 +167,7 @@ struct SupabaseShieldSetting: Codable, Identifiable {
 struct SupabaseShieldSettingInsert: Encodable {
     let user_account_id: String
     let child_device_id: String
-    let child_name: String
+    let device_owner: String // Renamed from child_name to device_owner
     let app_name: String
     let bundle_identifier: String
     let is_shielded: Bool
@@ -181,7 +181,7 @@ struct SupabaseShieldSettingInsert: Encodable {
          childName: String) {
         self.user_account_id = userAccountId
         self.child_device_id = childDeviceId
-        self.child_name = childName
+        self.device_owner = childName
         self.app_name = applicationProfile.applicationName
         // Use app name as bundle identifier for better stability
         self.bundle_identifier = applicationProfile.applicationName.lowercased().replacingOccurrences(of: " ", with: "_")
@@ -197,7 +197,7 @@ struct SupabaseShieldSettingInsert: Encodable {
          childName: String) {
         self.user_account_id = userAccountId
         self.child_device_id = childDeviceId
-        self.child_name = childName
+        self.device_owner = childName
         self.app_name = unshieldedApp.applicationName
         // Use app name as bundle identifier for better stability
         self.bundle_identifier = unshieldedApp.applicationName.lowercased().replacingOccurrences(of: " ", with: "_")
@@ -220,7 +220,7 @@ struct SupabaseShieldSettingInsert: Encodable {
          unlockExpiry: Date? = nil) {
         self.user_account_id = userAccountId
         self.child_device_id = childDeviceId
-        self.child_name = childName
+        self.device_owner = childName
         self.app_name = appName
         self.bundle_identifier = bundleIdentifier
         self.is_shielded = isShielded
@@ -1093,7 +1093,7 @@ class SupabaseManager {
             .rpc("upsert_child_shield_setting", params: [
                 "p_user_account_id": userId,
                 "p_child_device_id": setting.child_device_id,
-                "p_child_name": setting.child_name,
+                "p_device_owner": setting.device_owner,
                 "p_app_name": setting.app_name,
                 "p_bundle_identifier": setting.bundle_identifier,
                 "p_is_shielded": setting.is_shielded ? "true" : "false",

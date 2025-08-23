@@ -61,7 +61,7 @@ struct ChildSelectorView: View {
                                         .fill(Color.accentColor.opacity(0.2))
                                         .frame(width: 50, height: 50)
                                         .overlay(
-                                            Text(String(child.child_name.prefix(1)).uppercased())
+                                            Text(String(child.device_owner.prefix(1)).uppercased())
                                                 .font(.title2)
                                                 .fontWeight(.semibold)
                                                 .foregroundColor(.accentColor)
@@ -69,7 +69,7 @@ struct ChildSelectorView: View {
                                     
                                     // Child Info
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text(child.child_name)
+                                        Text(child.device_owner)
                                             .font(.headline)
                                             .foregroundColor(.primary)
                                         

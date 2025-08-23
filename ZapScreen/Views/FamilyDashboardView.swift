@@ -157,7 +157,7 @@ struct FamilyDashboardView: View {
                     .fill(Color.accentColor.opacity(0.2))
                     .frame(width: 40, height: 40)
                     .overlay(
-                        Text(String(child.child_name.prefix(1)).uppercased())
+                        Text(String(child.device_owner.prefix(1)).uppercased())
                             .font(.headline)
                             .fontWeight(.semibold)
                             .foregroundColor(.accentColor)
@@ -165,7 +165,7 @@ struct FamilyDashboardView: View {
                 
                 // Child Info
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(child.child_name)
+                    Text(child.device_owner)
                         .font(.headline)
                     
                     Text(child.device_name)
@@ -268,12 +268,12 @@ class FamilyDashboardViewModel: ObservableObject {
                             // Debug: Show what we got
                             print("[FamilyDashboardViewModel] Registered children:")
                             for child in registeredChildren {
-                                print("[FamilyDashboardViewModel] - \(child.child_name) (\(child.device_name))")
+                                print("[FamilyDashboardViewModel] - \(child.device_owner) (\(child.device_name))")
                             }
                             
                             print("[FamilyDashboardViewModel] Children with usage:")
                             for child in summary {
-                                print("[FamilyDashboardViewModel] - \(child.child_name): Apps: \(child.total_apps), Requests: \(child.total_requests)")
+                                print("[FamilyDashboardViewModel] - \(child.device_owner): Apps: \(child.total_apps), Requests: \(child.total_requests)")
                             }
                         }
                     } catch {
