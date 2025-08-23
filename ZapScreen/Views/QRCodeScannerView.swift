@@ -93,14 +93,15 @@ struct QRCodeScannerView: View {
                         .frame(width: 250, height: 250)
                         .background(Color.clear)
                     
-                    Spacer()
-                    
-                    // Instructions
+                    // Instructions - moved right below the scanning frame
                     VStack(spacing: 12) {
                         Text("Make sure the QR code is clearly visible")
                             .font(.caption)
                             .foregroundColor(.white.opacity(0.8))
                     }
+                    .padding(.top, 16)
+                    
+                    Spacer()
                 }
                 }
                 

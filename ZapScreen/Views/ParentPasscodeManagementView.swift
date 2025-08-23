@@ -52,13 +52,6 @@ struct ParentPasscodeManagementView: View {
             }
             .navigationTitle("Child Passcodes")
             .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
             .onAppear {
                 Task {
                     await viewModel.loadChildDevices()
