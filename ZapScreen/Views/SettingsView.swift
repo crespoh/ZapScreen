@@ -13,163 +13,184 @@ import FamilyControls
 struct SettingsView: View {
     @EnvironmentObject var appIconStore: AppIconStore
     @AppStorage("debugModeEnabled", store: UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")) private var debugModeEnabled = false
+    @AppStorage("selectedRole", store: UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")) private var selectedRole: String?
+    @StateObject private var passcodeManager = PasscodeManager.shared
+    
+    // Check if current device is a child device
+    private var isChildDevice: Bool {
+        selectedRole == UserRole.child.rawValue
+    }
     
     var body: some View {
         NavigationView {
-            List {
-                // Debug Mode Toggle
-                Section("Debug Settings") {
-                    Toggle("Enable Debug Mode", isOn: $debugModeEnabled)
-                        .onChange(of: debugModeEnabled) { newValue in
-                            print("[SettingsView] Debug mode \(newValue ? "enabled" : "disabled")")
-                        }
-                    
-                    if debugModeEnabled {
-                        Text("Debug features are now available in the main tabs")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    } else {
-                        Text("Debug features are hidden from the main interface")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+            Group {
+                // ✅ REFACTOR: Apply passcode protection for child devices (same as ConfigureActivitiesView)
+                if isChildDevice && passcodeManager.isPasscodeEnabled && passcodeManager.isLocked {
+                    // Show passcode prompt if child device is locked
+                    VStack {
+                        PasscodePromptView()
                     }
-                }
-                
-                // Debug Features (only shown when debug mode is enabled)
-                if debugModeEnabled {
-                    Section("Debug Features") {
-                        NavigationLink("App Icons Database", destination: AppIconListView())
-                            .foregroundColor(.blue)
-                        
-                        NavigationLink("Group UserDefaults", destination: GroupUserDefaultsView())
-                            .foregroundColor(.blue)
-                        
-                        NavigationLink("Device Activity Report", destination: DeviceActivityView())
-                            .foregroundColor(.blue)
-                        
-                        NavigationLink("Device List", destination: DeviceListView())
-                            .foregroundColor(.blue)
-                        
-                        NavigationLink("Passcode Debug", destination: PasscodeDebugView())
-                            .foregroundColor(.blue)
-                        
-                        Button("Reset Authorization") {
-                            resetAuthorization()
-                        }
-                        .foregroundColor(.red)
-                        
-                        Button("Check Authorization Status") {
-                            checkAuthorizationStatus()
-                        }
-                        .foregroundColor(.blue)
-                        
-                        Button("Check Shield Status") {
-                            checkShieldStatus()
-                        }
-                        .foregroundColor(.orange)
-                        
-                        Button("Force Apply Shields") {
-                            forceApplyShields()
-                        }
-                        .foregroundColor(.purple)
-                    }
-                    
-                    Section("Debug Information") {
-                        HStack {
-                            Text("App Icons Count")
-                            Spacer()
-                            Text("\(appIconStore.apps.count)")
-                                .foregroundColor(.secondary)
+                    // .navigationTitle("Settings")
+                    .navigationBarTitleDisplayMode(.inline)
+                } else {
+                    // Show normal settings UI
+                    List {
+                        // Debug Mode Toggle
+                        Section("Debug Settings") {
+                            Toggle("Enable Debug Mode", isOn: $debugModeEnabled)
+                                .onChange(of: debugModeEnabled) { oldValue, newValue in
+                                    print("[SettingsView] Debug mode \(newValue ? "enabled" : "disabled")")
+                                }
+                            
+                            if debugModeEnabled {
+                                Text("Debug features are now available in the main tabs")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            } else {
+                                Text("Debug features are hidden from the main interface")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                         
-                        HStack {
-                            Text("System Region")
-                            Spacer()
-                            Text(Locale.current.regionCode ?? "Unknown")
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        HStack {
-                            Text("Debug Mode")
-                            Spacer()
-                            Text(debugModeEnabled ? "Enabled" : "Disabled")
-                                .foregroundColor(debugModeEnabled ? .green : .red)
-                        }
-                    }
-                }
-                
-                        // Device Management
-                Section("Device Management") {
-                    NavigationLink("Scan Child Device QR Code", destination: QRCodeScannerView())
-                    
-                    NavigationLink("Child Passcode Management", destination: ParentPasscodeManagementView())
-                        .foregroundColor(.blue)
-                        .foregroundColor(.green)
-                }
-                
-                // Notifications
-                Section("Notifications") {
-                    HStack {
-                        Image(systemName: "bell.circle")
-                            .foregroundColor(.purple)
-                        Text("Smart Notifications")
-                        Spacer()
-                        if ShieldNotificationService.shared.isNotificationsEnabled {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                        } else {
-                            Image(systemName: "xmark.circle.fill")
+                        // Debug Features (only shown when debug mode is enabled)
+                        if debugModeEnabled {
+                            Section("Debug Features") {
+                                NavigationLink("App Icons Database", destination: AppIconListView())
+                                    .foregroundColor(.blue)
+                                
+                                NavigationLink("Group UserDefaults", destination: GroupUserDefaultsView())
+                                    .foregroundColor(.blue)
+                                
+                                NavigationLink("Device Activity Report", destination: DeviceActivityView())
+                                    .foregroundColor(.blue)
+                                
+                                NavigationLink("Device List", destination: DeviceListView())
+                                    .foregroundColor(.blue)
+                                
+                                NavigationLink("Passcode Debug", destination: PasscodeDebugView())
+                                    .foregroundColor(.blue)
+                                
+                                Button("Reset Authorization") {
+                                    resetAuthorization()
+                                }
                                 .foregroundColor(.red)
+                                
+                                Button("Check Authorization Status") {
+                                    checkAuthorizationStatus()
+                                }
+                                .foregroundColor(.blue)
+                                
+                                Button("Check Shield Status") {
+                                    checkShieldStatus()
+                                }
+                                .foregroundColor(.orange)
+                                
+                                Button("Force Apply Shields") {
+                                    forceApplyShields()
+                                }
+                                .foregroundColor(.purple)
+                            }
+                            
+                            Section("Debug Information") {
+                                HStack {
+                                    Text("App Icons Count")
+                                    Spacer()
+                                    Text("\(appIconStore.apps.count)")
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                HStack {
+                                    Text("System Region")
+                                    Spacer()
+                                    Text(Locale.current.region?.identifier ?? "Unknown")
+                                        .foregroundColor(.secondary)
+                                }
+                                
+                                HStack {
+                                    Text("Debug Mode")
+                                    Spacer()
+                                    Text(debugModeEnabled ? "Enabled" : "Disabled")
+                                        .foregroundColor(debugModeEnabled ? .green : .red)
+                                }
+                            }
                         }
-                    }
-                    
-                    NavigationLink("Notification Preferences") {
-                        NotificationPreferencesView()
-                    }
-                    
-                    Button("Request Permissions") {
-                        Task {
-                            await ShieldNotificationService.shared.requestNotificationPermissions()
+                        
+                        // Device Management (only show for parent devices)
+                        if !isChildDevice {
+                            Section("Device Management") {
+                                NavigationLink("Scan Child Device QR Code", destination: QRCodeScannerView())
+                                
+                                NavigationLink("Child Passcode Management", destination: ParentPasscodeManagementView())
+                                    .foregroundColor(.blue)
+                                    .foregroundColor(.green)
+                            }
                         }
-                    }
-                    .foregroundColor(.blue)
-                    .disabled(ShieldNotificationService.shared.isNotificationsEnabled)
-                }
-                
-                // Performance
-                Section("Performance") {
-                    HStack {
-                        Image(systemName: "speedometer")
-                            .foregroundColor(.orange)
-                        Text("Cache Management")
-                        Spacer()
-                        NavigationLink("", destination: CacheManagementView())
-                            .opacity(0)
-                    }
-                    
-                    NavigationLink("Performance Settings") {
-                        PerformanceSettingsView()
-                    }
-                }
-                
-                // App Information
-                Section("App Information") {
-                    HStack {
-                        Text("Version")
-                        Spacer()
-                        Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown")
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    HStack {
-                        Text("Build")
-                        Spacer()
-                        Text(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown")
-                            .foregroundColor(.secondary)
+                        
+                        // Notifications
+                        Section("Notifications") {
+                            HStack {
+                                Image(systemName: "bell.circle")
+                                    .foregroundColor(.purple)
+                                Text("Smart Notifications")
+                                Spacer()
+                                if ShieldNotificationService.shared.isNotificationsEnabled {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                } else {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.red)
+                                }
+                            }
+                            
+                            NavigationLink("Notification Preferences") {
+                                NotificationPreferencesView()
+                            }
+                            
+                            Button("Request Permissions") {
+                                Task {
+                                    await ShieldNotificationService.shared.requestNotificationPermissions()
+                                }
+                            }
+                            .foregroundColor(.blue)
+                            .disabled(ShieldNotificationService.shared.isNotificationsEnabled)
+                        }
+                        
+                        // Performance
+                        Section("Performance") {
+                            HStack {
+                                Image(systemName: "speedometer")
+                                    .foregroundColor(.orange)
+                                Text("Cache Management")
+                                Spacer()
+                                NavigationLink("", destination: CacheManagementView())
+                                    .opacity(0)
+                            }
+                            
+                            NavigationLink("Performance Settings") {
+                                PerformanceSettingsView()
+                            }
+                        }
+                        
+                        // App Information
+                        Section("App Information") {
+                            HStack {
+                                Text("Version")
+                                Spacer()
+                                Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown")
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            HStack {
+                                Text("Build")
+                                Spacer()
+                                Text(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                     }
                 }
             }
-//            .navigationTitle("Settings")
         }
     }
     

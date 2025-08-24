@@ -11,42 +11,62 @@ struct UsageStatisticsView: View {
     @StateObject private var viewModel = UsageStatisticsViewModel()
     @State private var showingDateRangePicker = false
     @State private var showingSortOptions = false
+    @AppStorage("selectedRole", store: UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")) private var selectedRole: String?
+    @StateObject private var passcodeManager = PasscodeManager.shared
+    
+    // Check if current device is a child device
+    private var isChildDevice: Bool {
+        selectedRole == UserRole.child.rawValue
+    }
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                // Summary Header
-                summaryHeader
-                
-                // Filter and Sort Controls
-                filterSortControls
-                
-                // Statistics List
-                statisticsList
-            }
-            .navigationTitle("Usage Statistics")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack(spacing: 12) {
-                        Button("Export") {
-                            exportUsageData()
-                        }
-                        .disabled(viewModel.usageStatistics.isEmpty)
+            Group {
+                // ✅ REFACTOR: Apply passcode protection for child devices (same as ConfigureActivitiesView)
+                if isChildDevice && passcodeManager.isPasscodeEnabled && passcodeManager.isLocked {
+                    // Show passcode prompt if child device is locked
+                    VStack {
+                        PasscodePromptView()
+                    }
+                    .navigationTitle("Usage Statistics")
+                    .navigationBarTitleDisplayMode(.inline)
+                } else {
+                    // Show normal usage statistics UI
+                    VStack(spacing: 0) {
+                        // Summary Header
+                        summaryHeader
                         
-                        Button("Filter") {
-                            showingDateRangePicker = true
+                        // Filter and Sort Controls
+                        filterSortControls
+                        
+                        // Statistics List
+                        statisticsList
+                    }
+                    .navigationTitle("Usage Statistics")
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            HStack(spacing: 12) {
+                                Button("Export") {
+                                    exportUsageData()
+                                }
+                                .disabled(viewModel.usageStatistics.isEmpty)
+                                
+                                Button("Filter") {
+                                    showingDateRangePicker = true
+                                }
+                            }
                         }
                     }
+                    .sheet(isPresented: $showingDateRangePicker) {
+                        DateRangePickerView(selectedRange: $viewModel.selectedDateRange)
+                    }
+                    .onAppear {
+                        viewModel.loadUsageStatistics()
+                    }
+                    .refreshable {
+                        viewModel.loadUsageStatistics()
+                    }
                 }
-            }
-            .sheet(isPresented: $showingDateRangePicker) {
-                DateRangePickerView(selectedRange: $viewModel.selectedDateRange)
-            }
-            .onAppear {
-                viewModel.loadUsageStatistics()
-            }
-            .refreshable {
-                viewModel.loadUsageStatistics()
             }
         }
     }

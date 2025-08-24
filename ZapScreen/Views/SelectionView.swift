@@ -7,16 +7,7 @@
 
 import Foundation
 import SwiftUI
-
-enum UserRole: String, CaseIterable, Identifiable {
-    case parent = "Parent"
-    case child = "Child"
-    var id: String { rawValue }
-
-    static var selectionCases: [UserRole] {
-        return [.parent, .child]
-    }
-}
+import Supabase
 
 struct SelectionView: View {
     let onSelect: (UserRole) -> Void
