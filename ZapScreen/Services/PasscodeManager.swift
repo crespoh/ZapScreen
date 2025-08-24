@@ -75,6 +75,9 @@ class PasscodeManager: ObservableObject {
         // Get the salt from Supabase along with the hashed passcode
         let salt = try await getSaltFromSupabase()
         
+        // ✅ FIX: Preserve current lock state when updating passcode from Supabase
+        let currentLockState = isLocked
+        
         // Save locally with the hashed passcode and salt from Supabase
         let settings = PasscodeSettings(
             hashedPasscode: hashedPasscode,
@@ -88,7 +91,7 @@ class PasscodeManager: ObservableObject {
         
         savePasscodeSettings(settings)
         isPasscodeEnabled = true
-        isLocked = true
+        isLocked = currentLockState  // ✅ FIX: Preserve current lock state instead of forcing lock
         lastActivity = Date()
         
         // Start idle timer now that passcode is enabled
@@ -97,6 +100,7 @@ class PasscodeManager: ObservableObject {
         }
         
         print("[PasscodeManager] Hashed passcode and salt saved from Supabase successfully")
+        print("[PasscodeManager] Lock state preserved: \(currentLockState)")
     }
     
     /// Force lock the device immediately (useful after passcode setup)
@@ -106,13 +110,17 @@ class PasscodeManager: ObservableObject {
         print("[PasscodeManager] Device force locked")
     }
     
-    func validatePasscode(_ passcode: String) -> PasscodeValidationResult {
+    func validatePasscode(_ passcode: String) async -> PasscodeValidationResult {
         // Check if device is locked out
         if let lockoutUntil = lockoutUntil, Date() < lockoutUntil {
             return .locked(lockoutUntil)
         }
         
-        // Check if passcode is correct
+        // ✅ REFACTOR: First check Supabase for any new passcode updates
+        print("[PasscodeManager] 🔍 Checking Supabase for latest passcode before validation...")
+        let _ = await checkSupabaseForLatestPasscode()
+        
+        // Now check if passcode is correct (using potentially updated passcode)
         guard let settings = loadPasscodeSettings() else {
             return .invalid(remainingAttempts)
         }
@@ -148,6 +156,7 @@ class PasscodeManager: ObservableObject {
         lockoutUntil = nil
         resetIdleTimer()
         
+        print("[PasscodeManager] ✅ Passcode validation successful - device unlocked")
         return .valid
     }
     
@@ -217,6 +226,7 @@ class PasscodeManager: ObservableObject {
     }
     
     func checkSupabaseForLatestPasscode() async -> String? {
+        print("[PasscodeManager] 🔍 Checking Supabase for latest passcode...")
         do {
             let latestHashedPasscode = try await SupabaseManager.shared.getLatestChildPasscode(
                 deviceId: getCurrentDeviceId()
@@ -229,14 +239,22 @@ class PasscodeManager: ObservableObject {
                 if let currentSettings = loadPasscodeSettings(),
                    hashedPasscode != currentSettings.hashedPasscode {
                     
+                    print("[PasscodeManager] 🔄 Passcode changed in Supabase - updating local passcode")
+                    print("[PasscodeManager] Current lock state before update: \(isLocked)")
+                    
                     // Save the hashed passcode directly without rehashing
                     try await saveHashedPasscode(hashedPasscode)
-                    print("[PasscodeManager] Updated local hashed passcode from Supabase")
+                    print("[PasscodeManager] ✅ Updated local hashed passcode from Supabase")
+                    print("[PasscodeManager] Lock state after update: \(isLocked)")
                     return hashedPasscode
+                } else {
+                    print("[PasscodeManager] ✅ Passcode unchanged in Supabase - no update needed")
                 }
+            } else {
+                print("[PasscodeManager] ℹ️ No passcode found in Supabase")
             }
         } catch {
-            print("[PasscodeManager] Failed to check Supabase for latest passcode: \(error)")
+            print("[PasscodeManager] ❌ Failed to check Supabase for latest passcode: \(error)")
         }
         
         return nil

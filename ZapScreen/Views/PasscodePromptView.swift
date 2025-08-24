@@ -146,7 +146,8 @@ struct PasscodePromptView: View {
         }
         .background(Color(.systemBackground))
         .onAppear {
-            checkSupabaseForLatestPasscode()
+            // ✅ FIX: Don't check Supabase automatically - this prevents the auto-deactivation bug
+            // The passcode prompt should remain active until correct passcode is entered
             startLockoutTimer()
         }
         .onDisappear {
@@ -182,42 +183,33 @@ struct PasscodePromptView: View {
         
         isValidating = true
         
-        let result = passcodeManager.validatePasscode(enteredPasscode)
-        
-        switch result {
-        case .valid:
-            // Passcode is correct - device will be unlocked
-            isValidating = false
-            enteredPasscode = ""
-            
-        case .invalid(let remainingAttempts):
-            // Passcode is incorrect
-            isValidating = false
-            enteredPasscode = ""
-            errorMessage = "Incorrect passcode. \(remainingAttempts) attempts remaining."
-            showingError = true
-            
-        case .locked(let lockoutUntil):
-            // Device is locked out
-            isValidating = false
-            enteredPasscode = ""
-            let timeRemaining = max(0, Int(lockoutUntil.timeIntervalSinceNow))
-            errorMessage = "Device locked. Try again after \(timeRemaining) seconds."
-            showingError = true
-        }
-    }
-    
-    private func checkSupabaseForLatestPasscode() {
+        // ✅ REFACTOR: Now async validation that checks Supabase first
         Task {
-            isCheckingSupabase = true
+            let result = await passcodeManager.validatePasscode(enteredPasscode)
             
-            let latestPasscode = await passcodeManager.checkSupabaseForLatestPasscode()
-            if latestPasscode != nil {
-                // Passcode was updated from Supabase
-                print("[PasscodePromptView] Passcode updated from Supabase")
+            await MainActor.run {
+                switch result {
+                case .valid:
+                    // Passcode is correct - device will be unlocked
+                    isValidating = false
+                    enteredPasscode = ""
+                    
+                case .invalid(let remainingAttempts):
+                    // Passcode is incorrect
+                    isValidating = false
+                    enteredPasscode = ""
+                    errorMessage = "Incorrect passcode. \(remainingAttempts) attempts remaining."
+                    showingError = true
+                    
+                case .locked(let lockoutUntil):
+                    // Device is locked out
+                    isValidating = false
+                    enteredPasscode = ""
+                    let timeRemaining = max(0, Int(lockoutUntil.timeIntervalSinceNow))
+                    errorMessage = "Device locked. Try again after \(timeRemaining) seconds."
+                    showingError = true
+                }
             }
-            
-            isCheckingSupabase = false
         }
     }
     
