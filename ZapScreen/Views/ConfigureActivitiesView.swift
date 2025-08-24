@@ -18,7 +18,7 @@ struct ConfigureActivitiesView: View {
                     VStack {
                         PasscodePromptView()
                     }
-                    .navigationTitle("Configure Activities")
+//                    .navigationTitle("Configure Activities")
                     .navigationBarTitleDisplayMode(.inline)
                 } else {
                     // Show simplified configure activities UI
@@ -115,7 +115,7 @@ struct ConfigureActivitiesView: View {
                             .padding(.vertical)
                         }
                     }
-                    .navigationTitle("Configure Activities")
+//                    .navigationTitle("Configure Activities")
                     .navigationBarTitleDisplayMode(.inline)
                     .sheet(isPresented: $showingAddActivity) {
                         ShieldCustomView()

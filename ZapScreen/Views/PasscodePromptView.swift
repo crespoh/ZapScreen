@@ -5,136 +5,140 @@ struct PasscodePromptView: View {
     @State private var enteredPasscode = ""
     @State private var showingError = false
     @State private var errorMessage = ""
-    @State private var isCheckingSupabase = false
     @State private var isValidating = false
     @State private var lockoutTimer: Timer?
     @State private var remainingLockoutTime: Int = 0
     
     var body: some View {
-        GeometryReader { geometry in
-            ScrollView {
-                VStack(spacing: 20) {
-//                    Spacer(minLength: 5)
+        VStack(spacing: 0) {
+            // Header Section
+            VStack(spacing: 20) {
+                // Lock Icon
+                VStack(spacing: 12) {
+                    Image(systemName: "lock.shield.fill")
+                        .font(.system(size: 60))
+                        .foregroundColor(.red)
                     
-                    // Center content vertically
-                    VStack(spacing: 20) {
-            // Header
-            VStack(spacing: 8) {
-                Image(systemName: "lock.shield")
-                    .font(.system(size: 50))
+                    Text("Passcode Required")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
+                }
+                .padding(.top, 40)
+                
+                // Passcode Display
+                HStack(spacing: 16) {
+                    ForEach(0..<4, id: \.self) { index in
+                        Circle()
+                            .fill(index < enteredPasscode.count ? Color.blue : Color(.systemGray4))
+                            .frame(width: 24, height: 24)
+                            .overlay(
+                                Text(index < enteredPasscode.count ? "•" : "")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                            )
+                    }
+                }
+                .padding(.vertical, 20)
+                
+                // Status Messages
+                if let _ = passcodeManager.lockoutUntil, remainingLockoutTime > 0 {
+                    VStack(spacing: 8) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.red)
+                            Text("Too many failed attempts")
+                                .font(.subheadline)
+                                .foregroundColor(.red)
+                        }
+                        
+                        Text("Try again in \(remainingLockoutTime) seconds")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.red.opacity(0.1))
+                    )
+                    .padding(.horizontal)
+                } else if passcodeManager.remainingAttempts < 3 {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                        Text("\(passcodeManager.remainingAttempts) attempts remaining")
+                            .font(.subheadline)
+                            .foregroundColor(.orange)
+                    }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.orange.opacity(0.1))
+                    )
+                    .padding(.horizontal)
+                }
+            }
+            
+            Spacer()
+            
+            // Numeric Keypad
+            VStack(spacing: 20) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 16) {
+                    ForEach(1...9, id: \.self) { number in
+                        NumberButton(number: "\(number)") {
+                            addDigit("\(number)")
+                        }
+                        .disabled(isLockedOut || isValidating)
+                    }
+                    
+                    // Bottom row: Clear, 0, Delete
+                    Button("Clear") {
+                        clearPasscode()
+                    }
+                    .buttonStyle(NumberButtonStyle())
                     .foregroundColor(.red)
+                    .disabled(isLockedOut || isValidating)
+                    
+                    NumberButton(number: "0") {
+                        addDigit("0")
+                    }
+                    .disabled(isLockedOut || isValidating)
+                    
+                    Button("⌫") {
+                        deleteLastDigit()
+                    }
+                    .buttonStyle(NumberButtonStyle())
+                    .foregroundColor(.orange)
+                    .disabled(isLockedOut || isValidating)
+                }
+                .padding(.horizontal, 40)
                 
-                // Text("Shield Management Locked")
-                //     .font(.title2)
-                //     .fontWeight(.bold)
-                
-                Text("Enter passcode to access shield settings")
+                if isValidating {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("Validating...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.top, 10)
+                }
+            }
+            
+            // Help Text - Increased spacing from keypad
+            VStack(spacing: 8) {
+                Text("Ask your parent to unlock this section")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
             }
-            
-            // Passcode Display
-            HStack(spacing: 12) {
-                ForEach(0..<4, id: \.self) { index in
-                    Circle()
-                        .fill(index < enteredPasscode.count ? Color.blue : Color.gray.opacity(0.3))
-                        .frame(width: 20, height: 20)
-                        .overlay(
-                            Text(index < enteredPasscode.count ? "•" : "")
-                                .font(.title2)
-                                .foregroundColor(.white)
-                        )
-                }
-            }
-            .padding(.vertical, 20)
-            
-            // Status Messages
-            if let lockoutUntil = passcodeManager.lockoutUntil, remainingLockoutTime > 0 {
-                VStack(spacing: 4) {
-                    Text("Too many failed attempts")
-                        .font(.caption)
-                        .foregroundColor(.red)
-                    
-                    Text("Try again in \(remainingLockoutTime) seconds")
-                        .font(.caption)
-                        .foregroundColor(.orange)
-                }
-            } else if passcodeManager.remainingAttempts < 3 {
-                Text("\(passcodeManager.remainingAttempts) attempts remaining")
-                    .font(.caption)
-                    .foregroundColor(.orange)
-            }
-            
-            // Numeric Keypad
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 15) {
-                ForEach(1...9, id: \.self) { number in
-                    NumberButton(number: "\(number)") {
-                        addDigit("\(number)")
-                    }
-                    .disabled(isLockedOut || isCheckingSupabase || isValidating)
-                }
-                
-                // Bottom row: Clear, 0, Delete
-                Button("Clear") {
-                    clearPasscode()
-                }
-                .buttonStyle(NumberButtonStyle())
-                .foregroundColor(.red)
-                .disabled(isLockedOut || isCheckingSupabase || isValidating)
-                
-                NumberButton(number: "0") {
-                    addDigit("0")
-                }
-                .disabled(isLockedOut || isCheckingSupabase || isValidating)
-                
-                Button("⌫") {
-                    deleteLastDigit()
-                }
-                .buttonStyle(NumberButtonStyle())
-                .foregroundColor(.orange)
-                .disabled(isLockedOut || isCheckingSupabase || isValidating)
-            }
-            .padding(.horizontal, 40)
-            
-            if isCheckingSupabase {
-                ProgressView("Checking for updates...")
-                    .padding(.top, 10)
-            }
-            
-            if isValidating {
-                ProgressView("Validating...")
-                    .padding(.top, 10)
-            }
-            
-            // Help Text
-            Text("Ask your parent to unlock this section")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .padding(.top, 20)
-                    }
-                    
-                    Spacer(minLength: 20)
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 30)
-                .frame(minHeight: geometry.size.height)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color(.systemBackground))
-                        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
-                )
-            }
+            .padding(.top, 40) // Increased from implicit spacing to 40
+            .padding(.bottom, 30)
         }
         .padding(.horizontal, 20)
-        .padding(.vertical, 10)
-        .safeAreaInset(edge: .bottom) {
-            Color.clear.frame(height: 0)
-        }
         .background(Color(.systemBackground))
         .onAppear {
-            // ✅ FIX: Don't check Supabase automatically - this prevents the auto-deactivation bug
-            // The passcode prompt should remain active until correct passcode is entered
             startLockoutTimer()
         }
         .onDisappear {
@@ -155,7 +159,7 @@ struct PasscodePromptView: View {
         guard enteredPasscode.count < 4 else { return }
         enteredPasscode += digit
         
-        // ✅ REFACTOR: Automatically validate when 4 digits are entered
+        // Automatically validate when 4 digits are entered
         if enteredPasscode.count == 4 {
             validatePasscode()
         }
@@ -175,7 +179,7 @@ struct PasscodePromptView: View {
         
         isValidating = true
         
-        // ✅ REFACTOR: Now async validation that checks Supabase first
+        // Async validation that checks Supabase first
         Task {
             let result = await passcodeManager.validatePasscode(enteredPasscode)
             
@@ -240,11 +244,6 @@ struct PasscodePromptView: View {
             // Lockout has expired - reset failed attempts
             remainingLockoutTime = 0
             passcodeManager.resetFailedAttempts()
-            
-            // Force view update by triggering a state change
-            DispatchQueue.main.async {
-                // This will trigger a view refresh
-            }
         }
     }
 }
