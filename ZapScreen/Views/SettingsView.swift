@@ -188,8 +188,41 @@ struct SettingsView: View {
                                     .foregroundColor(.secondary)
                             }
                         }
+                        
+                        // Account Management
+                        Section("Account") {
+                            Button("Logout") {
+                                handleLogout()
+                            }
+                            .foregroundColor(.red)
+                        }
                     }
                 }
+            }
+        }
+    }
+    
+    // MARK: - Account Methods
+    private func handleLogout() {
+        Task {
+            do {
+                // Clear UI state
+                if let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") {
+                    groupDefaults.set(false, forKey: "isLoggedIn")
+                    groupDefaults.removeObject(forKey: "selectedRole")
+                    groupDefaults.removeObject(forKey: "isAuthorized")
+                    groupDefaults.removeObject(forKey: "supabase_access_token")
+                    groupDefaults.removeObject(forKey: "supabase_refresh_token")
+                    groupDefaults.removeObject(forKey: "zap_userId")
+                    groupDefaults.removeObject(forKey: "zap_userRole")
+                }
+                
+                // Supabase sign out
+                try await SupabaseManager.shared.client.auth.signOut()
+                
+                print("[SettingsView] Logout successful")
+            } catch {
+                print("[SettingsView] Logout failed: \(error.localizedDescription)")
             }
         }
     }

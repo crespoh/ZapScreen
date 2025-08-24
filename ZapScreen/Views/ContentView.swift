@@ -57,13 +57,6 @@ struct ContentView: View {
                     }
             }
 //            .navigationTitle("ZapScreen")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Logout") {
-                        handleLogout()
-                    }
-                }
-            }
             // Present RemoteLockView when showRemoteLock is true and user is parent
             .sheet(isPresented: Binding(
                 get: { zapShowRemoteLock && selectedRole == UserRole.parent.rawValue },
@@ -79,28 +72,4 @@ struct ContentView: View {
             }
         }
     }
-    
-    func handleLogout() {
-        Task {
-            do {
-                // Clear UI state
-                isLoggedIn = false
-                selectedRole = nil
-                isAuthorized = false
-                // Clear all relevant group UserDefaults
-                if let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") {
-                    groupDefaults.removeObject(forKey: "supabase_access_token")
-                    groupDefaults.removeObject(forKey: "supabase_refresh_token")
-                    groupDefaults.removeObject(forKey: "zap_userId")
-                    groupDefaults.removeObject(forKey: "zap_userRole")
-                    groupDefaults.set(false, forKey: "isLoggedIn")
-                }
-                // Supabase sign out
-                try await SupabaseManager.shared.client.auth.signOut()
-            } catch {
-                print("Logout failed: \(error.localizedDescription)")
-            }
-        }
-    }
-
 }
