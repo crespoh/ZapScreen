@@ -3,57 +3,42 @@ import SwiftUI
 struct ChatView: View {
     @StateObject private var chatManager = ChatManager.shared
     @State private var selectedSession: ChatSession?
-    @State private var showingNewMessage = false
     @State private var messageInput = MessageInput()
     @State private var selectedFilter: ChatFilter = .all
-    @State private var showingUnlockRequest = false
-    @State private var selectedApp: String = ""
-    @State private var selectedDuration: Int = 5
     
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                // Header with filter
-                VStack(spacing: 12) {
-                    HStack {
-                        Text("Chat")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                        
-                        Spacer()
-                        
-                        // No need for manual chat creation - chats are auto-created for family members
-                        Text("Family Chats")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    // Filter Picker
-                    Picker("Filter", selection: $selectedFilter) {
-                        ForEach(ChatFilter.allCases, id: \.self) { filter in
-                            HStack {
-                                Image(systemName: filter.icon)
-                                Text(filter.displayName)
-                            }
-                            .tag(filter)
+                // Filter Picker
+                Picker("Filter", selection: $selectedFilter) {
+                    ForEach(ChatFilter.allCases, id: \.self) { filter in
+                        HStack {
+                            Image(systemName: filter.icon)
+                            Text(filter.displayName)
                         }
+                        .tag(filter)
                     }
-                    .pickerStyle(SegmentedPickerStyle())
                 }
-                .padding(.horizontal)
-                .padding(.top, 8)
+                .pickerStyle(SegmentedPickerStyle())
+                .padding()
                 
-                // Chat Sessions List
+                // Chat Sessions Content
                 if chatManager.isLoading {
                     Spacer()
-                    ProgressView("Loading chats...")
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .scaleEffect(1.2)
+                        Text("Loading chats...")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
                     Spacer()
                 } else if chatManager.chatSessions.isEmpty {
                     Spacer()
                     VStack(spacing: 16) {
                         Image(systemName: "person.3")
                             .font(.system(size: 60))
-                            .foregroundColor(.gray)
+                            .foregroundColor(.secondary)
                         
                         Text("No Family Members Found")
                             .font(.title3)
@@ -63,29 +48,26 @@ struct ChatView: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
-                        
-                        Button("Go to Family Dashboard") {
-                            // This would navigate to family dashboard to add members
-                            print("Navigate to family dashboard")
-                        }
-                        .buttonStyle(.borderedProminent)
                     }
                     .padding()
                     Spacer()
                 } else {
-                    List {
-                        ForEach(filteredSessions) { session in
-                            ChatSessionRow(session: session)
-                                .onTapGesture {
-                                    selectedSession = session
-                                }
+                    ScrollView {
+                        LazyVStack(spacing: 16) {
+                            ForEach(filteredSessions) { session in
+                                ChatSessionCard(session: session)
+                                    .onTapGesture {
+                                        selectedSession = session
+                                    }
+                            }
                         }
+                        .padding(.horizontal)
+                        .padding(.vertical)
                     }
-                    .listStyle(PlainListStyle())
                 }
             }
-            .navigationBarHidden(true)
-            // Remove manual chat creation - chats are auto-created for family members
+            .navigationTitle("Family Chat")
+            .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(isPresented: Binding(
                 get: { selectedSession != nil },
                 set: { if !$0 { selectedSession = nil } }
@@ -97,10 +79,8 @@ struct ChatView: View {
             .onAppear {
                 Task {
                     print("[ChatView] onAppear - Starting chat session loading...")
-                    // First load existing chat sessions
                     await chatManager.loadChatSessions()
                     print("[ChatView] onAppear - Loaded \(chatManager.chatSessions.count) existing chat sessions")
-                    // Then ensure chat sessions exist for all family members
                     await chatManager.loadFamilyMembersAndCreateChats()
                     print("[ChatView] onAppear - After family member sync, total sessions: \(chatManager.chatSessions.count)")
                 }
@@ -116,143 +96,138 @@ struct ChatView: View {
         case .all:
             return chatManager.chatSessions
         case .unlockRequests:
-            // Filter sessions that have unlock request messages
             return chatManager.chatSessions.filter { session in
-                // This would need to be implemented with actual message filtering
                 true // For now, show all
             }
         case .responses:
-            // Filter sessions that have response messages
             return chatManager.chatSessions.filter { session in
-                // This would need to be implemented with actual message filtering
                 true // For now, show all
             }
         case .pending:
-            // Filter sessions with pending requests
             return chatManager.chatSessions.filter { session in
-                // This would need to be implemented with actual message filtering
                 true // For now, show all
             }
         }
     }
 }
 
-// MARK: - Chat Session Row
+// MARK: - Chat Session Card (Standardized Design)
 
-struct ChatSessionRow: View {
+struct ChatSessionCard: View {
     let session: ChatSession
     
-    // Determine the display name based on current device's role
     private var displayName: String {
-        // Get current device ID from group UserDefaults
         guard let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") else {
-            return session.childName // Fallback if group defaults unavailable
+            return session.childName
         }
         
         let currentDeviceId = groupDefaults.string(forKey: "ZapDeviceId") ?? ""
         
         if session.parentDeviceId == currentDeviceId {
-            // Current device is parent, show child name
             return session.childName
         } else if session.childDeviceId == currentDeviceId {
-            // Current device is child, show parent name
             return session.parentName ?? "Parent"
         } else {
-            // Fallback to child name if device role can't be determined
             return session.childName
         }
     }
     
-    // Get first character for avatar
     private var avatarInitial: String {
         String(displayName.prefix(1)).uppercased()
     }
     
     var body: some View {
-        HStack(spacing: 12) {
-            // Avatar
-            Circle()
-                .fill(Color.blue.opacity(0.2))
-                .frame(width: 50, height: 50)
-                .overlay(
-                    Text(avatarInitial)
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.blue)
-                )
-            
-            // Content
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(displayName)
-                        .font(.headline)
-                        .fontWeight(.medium)
+        VStack(spacing: 0) {
+            HStack(spacing: 16) {
+                // Avatar
+                Circle()
+                    .fill(Color.blue.opacity(0.1))
+                    .frame(width: 50, height: 50)
+                    .overlay(
+                        Text(avatarInitial)
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.blue)
+                    )
+                
+                // Content
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(displayName)
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        
+                        Spacer()
+                        
+                        if let lastMessageAt = session.lastMessageAt {
+                            Text(lastMessageAt, style: .relative)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
                     
-                    Spacer()
-                    
-                    if let lastMessageAt = session.lastMessageAt {
-                        Text(lastMessageAt, style: .relative)
-                            .font(.caption)
+                    HStack {
+                        Text("Last message")
+                            .font(.subheadline)
                             .foregroundColor(.secondary)
-                    } else {
-                        Text("No messages")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        
+                        Spacer()
+                        
+                        if session.unreadCount > 0 {
+                            Text("\(session.unreadCount)")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.red)
+                                .clipShape(Capsule())
+                        }
                     }
                 }
                 
-                HStack {
-                    Text("Last message")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    
-                    Spacer()
-                    
-                    if session.unreadCount > 0 {
-                        Text("\(session.unreadCount)")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.red)
-                            .clipShape(Capsule())
-                    }
-                }
+                Spacer()
             }
+            .padding()
         }
-        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemGray6))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color(.systemGray4), lineWidth: 1)
+        )
     }
 }
 
-// MARK: - Family-Based Chat System
-// Chat sessions are automatically created for registered family members
-// No manual chat creation needed
-
-// MARK: - Chat Detail View
+// MARK: - Chat Detail View (Simplified)
 
 struct ChatDetailView: View {
     let session: ChatSession
     @StateObject private var chatManager = ChatManager.shared
     @State private var messageInput = MessageInput()
     @State private var showingUnlockRequest = false
-    @State private var selectedApp = ""
-    @State private var selectedDuration = 5
-    @State private var showingAppPicker = false
     
     var body: some View {
         VStack(spacing: 0) {
             // Messages List
             if chatManager.isLoading {
                 Spacer()
-                ProgressView("Loading messages...")
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .scaleEffect(1.2)
+                    Text("Loading messages...")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
                 Spacer()
             } else if chatManager.currentMessages.isEmpty {
                 Spacer()
                 VStack(spacing: 16) {
                     Image(systemName: "message.circle")
                         .font(.system(size: 60))
-                        .foregroundColor(.gray)
+                        .foregroundColor(.secondary)
                     
                     Text("No Messages Yet")
                         .font(.title3)
@@ -281,7 +256,6 @@ struct ChatDetailView: View {
                         scrollToLatestMessage(proxy: proxy)
                     }
                     .onAppear {
-                        // Scroll to latest message when view appears
                         scrollToLatestMessage(proxy: proxy)
                     }
                 }
@@ -322,10 +296,7 @@ struct ChatDetailView: View {
     private func sendMessage() {
         guard messageInput.isValid else { return }
         
-        // Store the message text before clearing
         let messageText = messageInput.text
-        
-        // Clear the input immediately for better UX
         messageInput.clear()
         
         Task {
@@ -336,7 +307,6 @@ struct ChatDetailView: View {
                 )
             } catch {
                 print("[ChatDetailView] Failed to send message: \(error)")
-                // Restore the message text if sending failed
                 await MainActor.run {
                     messageInput.text = messageText
                 }
@@ -357,16 +327,15 @@ struct ChatDetailView: View {
     }
 }
 
-// MARK: - Message Bubble
+// MARK: - Message Bubble (Simplified)
 
 struct MessageBubble: View {
     let message: ChatMessage
     @StateObject private var chatManager = ChatManager.shared
     
     private var isFromCurrentUser: Bool {
-        // Get device ID from group UserDefaults for consistency
         guard let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data") else {
-            return false // Fallback if group defaults unavailable
+            return false
         }
         
         let currentDeviceId = groupDefaults.string(forKey: "ZapDeviceId") ?? ""
@@ -381,39 +350,24 @@ struct MessageBubble: View {
             
             VStack(alignment: isFromCurrentUser ? .trailing : .leading, spacing: 4) {
                 // Message content
-                VStack(alignment: isFromCurrentUser ? .trailing : .leading, spacing: 8) {
-                    if message.isUnlockRequest {
-                        UnlockRequestBubble(message: message)
-                    } else if message.isUnlockResponse {
-                        UnlockResponseBubble(message: message)
-                    } else {
-                        Text(message.content)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .background(isFromCurrentUser ? Color.blue : Color(.systemGray6))
-                            .foregroundColor(isFromCurrentUser ? .white : .primary)
-                            .cornerRadius(18)
-                            .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 1)
-                    }
+                if message.isUnlockRequest {
+                    UnlockRequestBubble(message: message)
+                } else if message.isUnlockResponse {
+                    UnlockResponseBubble(message: message)
+                } else {
+                    Text(message.content)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(isFromCurrentUser ? Color.blue : Color(.systemGray6))
+                        .foregroundColor(isFromCurrentUser ? .white : .primary)
+                        .cornerRadius(18)
                 }
                 
-                // Timestamp and sender name
-                HStack {
-                    if !isFromCurrentUser {
-                        Text(message.senderName)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .padding(.leading, 4)
-                    }
-                    
-//                    Spacer()
-                    
-                    Text(message.formattedTimestamp)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .padding(.trailing, 4)
-                }
-                .padding(.horizontal, 4)
+                // Timestamp
+                Text(message.formattedTimestamp)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 4)
             }
             
             if !isFromCurrentUser {
@@ -423,11 +377,10 @@ struct MessageBubble: View {
     }
 }
 
-// MARK: - Unlock Request Bubble
+// MARK: - Unlock Request Bubble (Simplified)
 
 struct UnlockRequestBubble: View {
     let message: ChatMessage
-    @StateObject private var chatManager = ChatManager.shared
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -468,7 +421,7 @@ struct UnlockRequestBubble: View {
     }
 }
 
-// MARK: - Unlock Response Bubble
+// MARK: - Unlock Response Bubble (Simplified)
 
 struct UnlockResponseBubble: View {
     let message: ChatMessage
@@ -513,7 +466,7 @@ struct UnlockResponseBubble: View {
     }
 }
 
-// MARK: - Message Input View
+// MARK: - Message Input View (Simplified)
 
 struct MessageInputView: View {
     @Binding var messageInput: MessageInput
@@ -549,7 +502,7 @@ struct MessageInputView: View {
     }
 }
 
-// MARK: - Unlock Request View
+// MARK: - Unlock Request View (Simplified)
 
 struct UnlockRequestView: View {
     let session: ChatSession

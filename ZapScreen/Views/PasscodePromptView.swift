@@ -12,9 +12,9 @@ struct PasscodePromptView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Header Section
-            VStack(spacing: 20) {
+            VStack(spacing: 10) {
                 // Lock Icon
-                VStack(spacing: 12) {
+                VStack(spacing: 8) {
                     Image(systemName: "lock.shield.fill")
                         .font(.system(size: 60))
                         .foregroundColor(.red)
