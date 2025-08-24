@@ -26,36 +26,37 @@ struct ContentView: View {
                         Label("Shield", systemImage: "shield")
                     }
                 
-                ChatView()
-                    .tabItem {
-                        Label("Chat", systemImage: "message")
-                    }
-                
                 UsageStatisticsView()
                     .tabItem {
                         Label("Statistics", systemImage: "chart.bar")
                     }
+                
+                
+                ChatView()
+                    .tabItem {
+                        Label("Chat", systemImage: "message")
+                    }
         
-        // Show Family Dashboard only for parent devices
-        if isParentDevice {
-            FamilyDashboardView()
-                .tabItem {
-                    Label("Family", systemImage: "person.3")
+                // Show Family Dashboard only for parent devices
+                if isParentDevice {
+                    FamilyDashboardView()
+                        .tabItem {
+                            Label("Family", systemImage: "person.3")
+                        }
+                } else {
+                    // Show QR Code for child devices
+                    ChildQRCodeView()
+                        .tabItem {
+                            Label("Pair Device", systemImage: "qrcode")
+                        }
                 }
-        } else {
-            // Show QR Code for child devices
-            ChildQRCodeView()
-                .tabItem {
-                    Label("Pair Device", systemImage: "qrcode")
-                }
-        }
                 
                 SettingsView()
                     .tabItem {
                         Label("Settings", systemImage: "gear")
                     }
             }
-            .navigationTitle("ZapScreen")
+//            .navigationTitle("ZapScreen")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Logout") {

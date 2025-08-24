@@ -18,7 +18,7 @@ struct ConfigureActivitiesView: View {
                     VStack {
                         PasscodePromptView()
                     }
-                    .navigationTitle("Shield")
+                    // .navigationTitle("Shield")
                     .navigationBarTitleDisplayMode(.inline)
                 } else {
                     // Show normal configure activities UI

@@ -14,7 +14,7 @@ struct PasscodePromptView: View {
         GeometryReader { geometry in
             ScrollView {
                 VStack(spacing: 20) {
-                    Spacer(minLength: 20)
+//                    Spacer(minLength: 5)
                     
                     // Center content vertically
                     VStack(spacing: 20) {
@@ -24,9 +24,9 @@ struct PasscodePromptView: View {
                     .font(.system(size: 50))
                     .foregroundColor(.red)
                 
-                Text("Shield Management Locked")
-                    .font(.title2)
-                    .fontWeight(.bold)
+                // Text("Shield Management Locked")
+                //     .font(.title2)
+                //     .fontWeight(.bold)
                 
                 Text("Enter passcode to access shield settings")
                     .font(.caption)
@@ -66,11 +66,6 @@ struct PasscodePromptView: View {
                     .foregroundColor(.orange)
             }
             
-            // Instructions
-            Text("Enter 4-digit passcode")
-                .font(.caption)
-                .foregroundColor(.secondary)
-            
             // Numeric Keypad
             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 15) {
                 ForEach(1...9, id: \.self) { number in
@@ -101,14 +96,6 @@ struct PasscodePromptView: View {
                 .disabled(isLockedOut || isCheckingSupabase || isValidating)
             }
             .padding(.horizontal, 40)
-            
-            // Unlock Button
-            Button("Unlock") {
-                validatePasscode()
-            }
-            .buttonStyle(PrimaryButtonStyle())
-            .disabled(enteredPasscode.count != 4 || isLockedOut || isCheckingSupabase || isValidating)
-            .padding(.top, 20)
             
             if isCheckingSupabase {
                 ProgressView("Checking for updates...")
@@ -167,6 +154,11 @@ struct PasscodePromptView: View {
     private func addDigit(_ digit: String) {
         guard enteredPasscode.count < 4 else { return }
         enteredPasscode += digit
+        
+        // ✅ REFACTOR: Automatically validate when 4 digits are entered
+        if enteredPasscode.count == 4 {
+            validatePasscode()
+        }
     }
     
     private func deleteLastDigit() {
