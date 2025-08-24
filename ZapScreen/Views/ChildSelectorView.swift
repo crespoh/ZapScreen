@@ -61,7 +61,7 @@ struct ChildSelectorView: View {
                                         .fill(Color.accentColor.opacity(0.2))
                                         .frame(width: 50, height: 50)
                                         .overlay(
-                                            Text(String(child.device_owner.prefix(1)).uppercased())
+                                            Text(String(child.device_owner.prefix(1)).uppercased()) // ✅ CORRECT: device_owner for generic device display
                                                 .font(.title2)
                                                 .fontWeight(.semibold)
                                                 .foregroundColor(.accentColor)
@@ -69,7 +69,7 @@ struct ChildSelectorView: View {
                                     
                                     // Child Info
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text(child.device_owner)
+                                        Text(child.device_owner) // ✅ CORRECT: device_owner for generic device display
                                             .font(.headline)
                                             .foregroundColor(.primary)
                                         

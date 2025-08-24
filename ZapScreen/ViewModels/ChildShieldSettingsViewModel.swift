@@ -82,7 +82,7 @@ class ChildShieldSettingsViewModel: ObservableObject {
             var childSummaries: [ChildShieldSettingsSummary] = []
             
             for (deviceId, settings) in groupedSettings {
-                let childName = settings.first?.device_owner ?? "Unknown Child"
+                let childName = settings.first?.child_name ?? "Unknown Child"
                 
                 // Separate shielded and unshielded apps
                 let shieldedApps = settings.filter { $0.is_shielded }
