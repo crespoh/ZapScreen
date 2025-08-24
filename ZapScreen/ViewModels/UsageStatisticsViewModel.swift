@@ -11,81 +11,117 @@ import ManagedSettings
 
 class UsageStatisticsViewModel: ObservableObject {
     @Published var usageStatistics: [UsageStatistics] = []
-    @Published var selectedDateRange: DateRange = .allTime
-    @Published var sortOption: SortOption = .appName
+    @Published var usageRecords: [UsageRecord] = []
+    @Published var usageData: [UsageData] = []
     @Published var isLoading: Bool = false
-    @Published var dataSource: DataSource = .local // New: local vs remote
     
     private let database = DataBase()
     
-    enum DataSource: String, CaseIterable {
-        case local = "Local"
-        case remote = "Remote"
+    // Computed properties for the simplified view
+    var totalTimeFormatted: String {
+        let totalMinutes = usageStatistics.reduce(0) { $0 + $1.totalTimeApprovedMinutes }
+        if totalMinutes >= 60 {
+            let hours = totalMinutes / 60
+            let minutes = totalMinutes % 60
+            return minutes > 0 ? "\(hours)h \(minutes)m" : "\(hours)h"
+        } else {
+            return "\(totalMinutes)m"
+        }
     }
     
-    enum SortOption: String, CaseIterable {
-        case appName = "App Name"
-        case totalRequests = "Total Requests"
-        case totalTime = "Total Time"
-        case lastUsed = "Last Used"
-        case todayUsage = "Today's Usage"
-        case weekUsage = "This Week"
-        case monthUsage = "This Month"
+    var totalRequests: Int {
+        usageStatistics.reduce(0) { $0 + $1.totalRequestsApproved }
     }
     
-    func loadUsageStatistics() {
+    func loadUsageStatistics(for timeRange: TimeRange) {
         isLoading = true
         
         Task {
-            switch dataSource {
-            case .local:
-                await loadLocalStatistics()
-            case .remote:
-                await loadRemoteStatistics()
-            }
+            await loadLocalStatistics(for: timeRange)
         }
     }
     
     @MainActor
-    private func loadLocalStatistics() async {
-        let statistics = database.getUsageStatistics(for: selectedDateRange)
+    private func loadLocalStatistics(for timeRange: TimeRange) async {
+        // Convert TimeRange to DateRange for the database
+        let dateRange = convertTimeRangeToDateRange(timeRange)
+        let statistics = database.getUsageStatistics(for: dateRange)
+        
+        // Update usage statistics
         usageStatistics = Array(statistics.values).sorted { first, second in
-            switch sortOption {
-            case .appName:
-                return first.appName < second.appName
-            case .totalRequests:
-                return first.totalRequestsApproved > second.totalRequestsApproved
-            case .totalTime:
-                return first.totalTimeApprovedMinutes > second.totalTimeApprovedMinutes
-            case .lastUsed:
-                return (first.lastApprovedDate ?? Date.distantPast) > (second.lastApprovedDate ?? Date.distantPast)
-            case .todayUsage:
-                return first.todayUsage.minutes > second.todayUsage.minutes
-            case .weekUsage:
-                return first.thisWeekUsage.minutes > second.thisWeekUsage.minutes
-            case .monthUsage:
-                return first.thisMonthUsage.minutes > second.thisMonthUsage.minutes
-            }
+            first.totalTimeApprovedMinutes > second.totalTimeApprovedMinutes
         }
+        
+        // Extract all usage records and sort by date
+        let allRecords = statistics.values.flatMap { $0.usageRecords }
+        usageRecords = allRecords.sorted { $0.approvedDate > $1.approvedDate }
+        
+        // Create chart data
+        usageData = createChartData(from: allRecords, for: timeRange)
+        
         isLoading = false
     }
     
-    @MainActor
-    private func loadRemoteStatistics() async {
-        // For now, skip remote loading until we have proper ApplicationToken handling
-        // This will be implemented in future phases
-        print("[UsageStatisticsViewModel] Remote loading not yet implemented - falling back to local data")
-        await loadLocalStatistics()
+    private func convertTimeRangeToDateRange(_ timeRange: TimeRange) -> DateRange {
+        switch timeRange {
+        case .today:
+            return .today
+        case .thisWeek:
+            return .thisWeek
+        case .thisMonth:
+            return .thisMonth
+        case .allTime:
+            return .allTime
+        }
+    }
+    
+    private func createChartData(from records: [UsageRecord], for timeRange: TimeRange) -> [UsageData] {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        // Group records by date and sum minutes
+        var dailyUsage: [Date: Int] = [:]
+        
+        for record in records {
+            let dayStart = calendar.startOfDay(for: record.approvedDate)
+            dailyUsage[dayStart, default: 0] += record.durationMinutes
+        }
+        
+        // Create UsageData objects for chart
+        let sortedDates = dailyUsage.keys.sorted()
+        return sortedDates.map { date in
+            UsageData(date: date, minutes: dailyUsage[date] ?? 0)
+        }
+    }
+    
+    // Legacy methods for backward compatibility
+    func loadUsageStatistics() {
+        loadUsageStatistics(for: .allTime)
     }
     
     func changeDateRange(_ range: DateRange) {
-        selectedDateRange = range
-        loadUsageStatistics()
+        // Convert DateRange to TimeRange and reload
+        let timeRange = convertDateRangeToTimeRange(range)
+        loadUsageStatistics(for: timeRange)
+    }
+    
+    private func convertDateRangeToTimeRange(_ dateRange: DateRange) -> TimeRange {
+        switch dateRange {
+        case .today:
+            return .today
+        case .thisWeek:
+            return .thisWeek
+        case .thisMonth:
+            return .thisMonth
+        default:
+            return .allTime
+        }
     }
     
     func changeSortOption(_ option: SortOption) {
-        sortOption = option
-        loadUsageStatistics()
+        // For the simplified view, we don't need complex sorting
+        // Just reload with current time range
+        loadUsageStatistics(for: .allTime)
     }
     
     // Summary statistics for the selected date range
@@ -120,5 +156,21 @@ class UsageStatisticsViewModel: ObservableObject {
     var summaryText: String {
         let stats = summaryStatistics
         return "\(stats.totalApps) apps, \(stats.totalRequests) requests, \(stats.totalMinutes) minutes"
+    }
+    
+    // Legacy enum for backward compatibility
+    enum SortOption: String, CaseIterable {
+        case appName = "App Name"
+        case totalRequests = "Total Requests"
+        case totalTime = "Total Time"
+        case lastUsed = "Last Used"
+        case todayUsage = "Today's Usage"
+        case weekUsage = "This Week"
+        case monthUsage = "This Month"
+    }
+    
+    enum DataSource: String, CaseIterable {
+        case local = "Local"
+        case remote = "Remote"
     }
 }

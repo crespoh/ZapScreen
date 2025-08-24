@@ -18,3 +18,20 @@ enum UserRole: String, CaseIterable, Identifiable {
         return [.parent, .child]
     }
 }
+
+// MARK: - Time Range Enum
+enum TimeRange: String, CaseIterable {
+    case today = "Today"
+    case thisWeek = "This Week"
+    case thisMonth = "This Month"
+    case allTime = "All Time"
+    
+    var displayName: String { rawValue }
+}
+
+// MARK: - Usage Data for Charts
+struct UsageData: Identifiable {
+    let id = UUID()
+    let date: Date
+    let minutes: Int
+}

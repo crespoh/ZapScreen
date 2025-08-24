@@ -6,276 +6,127 @@
 //
 
 import SwiftUI
+import Charts
 
 struct UsageStatisticsView: View {
     @StateObject private var viewModel = UsageStatisticsViewModel()
-    @State private var showingDateRangePicker = false
-    @State private var showingSortOptions = false
-    @AppStorage("selectedRole", store: UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")) private var selectedRole: String?
-    @StateObject private var passcodeManager = PasscodeManager.shared
-    
-    // Check if current device is a child device
-    private var isChildDevice: Bool {
-        selectedRole == UserRole.child.rawValue
-    }
+    @State private var selectedTimeRange: TimeRange = .today
+    @State private var showingAddRecord = false
     
     var body: some View {
         NavigationView {
-            Group {
-                // ✅ REFACTOR: Apply passcode protection for child devices (same as ConfigureActivitiesView)
-                if isChildDevice && passcodeManager.isPasscodeEnabled && passcodeManager.isLocked {
-                    // Show passcode prompt if child device is locked
-                    VStack {
-                        PasscodePromptView()
+            VStack(spacing: 0) {
+                // Time range picker
+                Picker("Time Range", selection: $selectedTimeRange) {
+                    ForEach(TimeRange.allCases, id: \.self) { range in
+                        Text(range.displayName).tag(range)
                     }
-                    .navigationTitle("Usage Statistics")
-                    .navigationBarTitleDisplayMode(.inline)
-                } else {
-                    // Show normal usage statistics UI
-                    VStack(spacing: 0) {
-                        // Summary Header
-                        summaryHeader
+                }
+                .pickerStyle(SegmentedPickerStyle())
+                .padding()
+                
+                // Statistics content
+                ScrollView {
+                    LazyVStack(spacing: 16) {
+                        // Summary cards
+                        LazyVGrid(columns: [
+                            GridItem(.flexible()),
+                            GridItem(.flexible())
+                        ], spacing: 16) {
+                            StatCard(
+                                title: "Total Time",
+                                value: viewModel.totalTimeFormatted,
+                                color: .blue
+                            )
+                            StatCard(
+                                title: "Total Requests",
+                                value: "\(viewModel.totalRequests)",
+                                color: .green
+                            )
+                        }
+                        .padding(.horizontal)
                         
-                        // Filter and Sort Controls
-                        filterSortControls
-                        
-                        // Statistics List
-                        statisticsList
-                    }
-                    .navigationTitle("Usage Statistics")
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            HStack(spacing: 12) {
-                                Button("Export") {
-                                    exportUsageData()
-                                }
-                                .disabled(viewModel.usageStatistics.isEmpty)
+                        // Chart
+                        if !viewModel.usageData.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Usage Over Time")
+                                    .font(.headline)
+                                    .padding(.horizontal)
                                 
-                                Button("Filter") {
-                                    showingDateRangePicker = true
+                                Chart {
+                                    ForEach(viewModel.usageData, id: \.date) { data in
+                                        BarMark(
+                                            x: .value("Date", data.date, unit: .day),
+                                            y: .value("Minutes", data.minutes)
+                                        )
+                                        .foregroundStyle(Color.blue.gradient)
+                                    }
                                 }
+                                .frame(height: 200)
+                                .padding(.horizontal)
                             }
                         }
+                        
+                        // Usage records list
+                        if !viewModel.usageRecords.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Recent Usage")
+                                    .font(.headline)
+                                    .padding(.horizontal)
+                                
+                                LazyVStack(spacing: 8) {
+                                    ForEach(viewModel.usageRecords, id: \.id) { record in
+                                        UsageRecordRow(record: record)
+                                    }
+                                }
+                                .padding(.horizontal)
+                            }
+                        }
+                        
+                        // Empty state
+                        if viewModel.usageData.isEmpty && viewModel.usageRecords.isEmpty {
+                            VStack(spacing: 16) {
+                                Image(systemName: "chart.bar.xaxis")
+                                    .font(.system(size: 48))
+                                    .foregroundColor(.secondary)
+                                
+                                Text("No usage data available")
+                                    .font(.headline)
+                                    .foregroundColor(.secondary)
+                                
+                                Text("Usage statistics will appear here once you start using apps")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .padding()
+                        }
                     }
-                    .sheet(isPresented: $showingDateRangePicker) {
-                        DateRangePickerView(selectedRange: $viewModel.selectedDateRange)
-                    }
-                    .onAppear {
-                        viewModel.loadUsageStatistics()
-                    }
-                    .refreshable {
-                        viewModel.loadUsageStatistics()
-                    }
+                    .padding(.vertical)
                 }
             }
-        }
-    }
-    
-    private var summaryHeader: some View {
-        VStack(spacing: 12) {
-            HStack {
-                Text(viewModel.selectedDateRange.displayName)
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                
-                Spacer()
-                
-                if !viewModel.usageStatistics.isEmpty {
-                    Text(viewModel.summaryText)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            
-            HStack(spacing: 20) {
-                VStack {
-                    Text("\(viewModel.summaryStatistics.totalApps)")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    Text("Apps")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                VStack {
-                    Text("\(viewModel.summaryStatistics.totalRequests)")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    Text("Requests")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                VStack {
-                    Text("\(viewModel.summaryStatistics.totalMinutes)")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    Text("Minutes")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-        .padding()
-        .background(Color(.systemGray6))
-    }
-    
-    private var filterSortControls: some View {
-        HStack {
-            Button(action: { showingSortOptions = true }) {
-                HStack {
-                    Image(systemName: "arrow.up.arrow.down")
-                    Text(viewModel.sortOption.rawValue)
-                }
-                .font(.caption)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.blue.opacity(0.1))
-                .foregroundColor(.blue)
-                .cornerRadius(8)
-            }
-            
-            Spacer()
-            
-            Text(viewModel.selectedDateRange.displayName)
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-    }
-    
-    private var statisticsList: some View {
-        List {
-            if viewModel.isLoading {
-                HStack {
-                    Spacer()
-                    ProgressView("Loading...")
-                        .padding()
-                    Spacer()
-                }
-                .listRowBackground(Color.clear)
-            } else if viewModel.usageStatistics.isEmpty {
-                emptyStateView
-            } else {
-                ForEach(viewModel.usageStatistics) { stat in
-                    enhancedStatisticsRow(stat)
-                }
-            }
-        }
-        .actionSheet(isPresented: $showingSortOptions) {
-            ActionSheet(
-                title: Text("Sort By"),
-                buttons: UsageStatisticsViewModel.SortOption.allCases.map { option in
-                    .default(Text(option.rawValue)) {
-                        viewModel.changeSortOption(option)
-                    }
-                } + [.cancel()]
-            )
-        }
-    }
-    
-    private var emptyStateView: some View {
-        VStack(spacing: 16) {
-            Image(systemName: viewModel.selectedDateRange == .allTime ? "chart.bar.doc.horizontal" : "calendar.badge.exclamationmark")
-                .font(.system(size: 48))
-                .foregroundColor(.gray)
-            
-            Text(viewModel.selectedDateRange == .allTime ? "No Usage Statistics" : "No Data for Selected Period")
-                .font(.headline)
-                .foregroundColor(.gray)
-            
-            Text(viewModel.selectedDateRange == .allTime ? 
-                 "Statistics will appear here once apps have been approved for unshielding" :
-                 "Try selecting a different time period or check if apps were used during this time")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .listRowBackground(Color.clear)
-    }
-    
-    private func exportUsageData() {
-        let csvData = viewModel.exportUsageData()
-        let activityVC = UIActivityViewController(activityItems: [csvData], applicationActivities: nil)
-        
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let window = windowScene.windows.first {
-            window.rootViewController?.present(activityVC, animated: true)
-        }
-    }
-    
-    private func enhancedStatisticsRow(_ stat: UsageStatistics) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(stat.appName)
-                    .font(.headline)
-                Spacer()
-                Text("\(stat.totalRequestsApproved) requests")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
-            HStack {
-                Text("Total time approved:")
-                    .font(.subheadline)
-                Spacer()
-                Text("\(stat.totalTimeApprovedMinutes) minutes")
-                    .font(.subheadline)
-                    .foregroundColor(.blue)
-            }
-            
-            // Date-based usage indicators
-            HStack(spacing: 16) {
-                if stat.todayUsage.minutes > 0 {
-                    VStack(alignment: .leading) {
-                        Text("Today")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                        Text("\(stat.todayUsage.minutes)m")
-                            .font(.caption)
-                            .foregroundColor(.green)
+            .navigationTitle("Usage Statistics")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showingAddRecord = true }) {
+                        Image(systemName: "plus")
                     }
                 }
-                
-                if stat.thisWeekUsage.minutes > 0 {
-                    VStack(alignment: .leading) {
-                        Text("This Week")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                        Text("\(stat.thisWeekUsage.minutes)m")
-                            .font(.caption)
-                            .foregroundColor(.orange)
-                    }
-                }
-                
-                if stat.thisMonthUsage.minutes > 0 {
-                    VStack(alignment: .leading) {
-                        Text("This Month")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                        Text("\(stat.thisMonthUsage.minutes)m")
-                            .font(.caption)
-                            .foregroundColor(.purple)
-                    }
-                }
-                
-                Spacer()
             }
-            
-            if let lastDate = stat.lastApprovedDate {
-                HStack {
-                    Text("Last approved:")
-                        .font(.caption)
-                    Spacer()
-                    Text(lastDate, style: .date)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+            .sheet(isPresented: $showingAddRecord) {
+                AddUsageRecordView(viewModel: viewModel)
+            }
+            .onAppear {
+                viewModel.loadUsageStatistics(for: selectedTimeRange)
+            }
+            .onChange(of: selectedTimeRange) { _, newRange in
+                viewModel.loadUsageStatistics(for: newRange)
+            }
+            .refreshable {
+                viewModel.loadUsageStatistics(for: selectedTimeRange)
             }
         }
-        .padding(.vertical, 4)
     }
 }
 
