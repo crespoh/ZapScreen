@@ -105,3 +105,115 @@ struct AddUsageRecordView: View {
         }
     }
 }
+
+// MARK: - App Status Card Component
+struct AppStatusCard: View {
+    let appName: String
+    let isShielded: Bool
+    let onRemove: () -> Void
+    let showDeleteButton: Bool
+    
+    init(appName: String, isShielded: Bool, onRemove: @escaping () -> Void, showDeleteButton: Bool = true) {
+        self.appName = appName
+        self.isShielded = isShielded
+        self.onRemove = onRemove
+        self.showDeleteButton = showDeleteButton
+    }
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // App icon placeholder
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.blue.opacity(0.2))
+                .frame(width: 40, height: 40)
+                .overlay(
+                    Image(systemName: "app.fill")
+                        .foregroundColor(.blue)
+                )
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(appName)
+                    .font(.headline)
+                    .lineLimit(1)
+                
+                HStack(spacing: 6) {
+                    Image(systemName: isShielded ? "shield.fill" : "shield.slash")
+                        .foregroundColor(isShielded ? .red : .green)
+                        .font(.caption)
+                    
+                    Text(isShielded ? "Restricted" : "Unrestricted")
+                        .font(.caption)
+                        .foregroundColor(isShielded ? .red : .green)
+                }
+            }
+            
+            Spacer()
+            
+            // Delete button (only shown when showDeleteButton is true)
+            if showDeleteButton {
+                Button(action: onRemove) {
+                    Image(systemName: "trash")
+                        .foregroundColor(.red)
+                        .font(.title3)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+}
+
+// MARK: - Add Activity Button Component
+struct AddActivityButton: View {
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.title2)
+                    .foregroundColor(.blue)
+                
+                Text("Add Activity")
+                    .font(.headline)
+                    .foregroundColor(.blue)
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(Color.blue.opacity(0.1))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// MARK: - Empty State Component
+struct EmptyStateView: View {
+    let title: String
+    let message: String
+    let iconName: String
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: iconName)
+                .font(.system(size: 48))
+                .foregroundColor(.secondary)
+            
+            Text(title)
+                .font(.headline)
+                .foregroundColor(.secondary)
+            
+            Text(message)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding()
+    }
+}

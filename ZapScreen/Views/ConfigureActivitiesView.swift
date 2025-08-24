@@ -1,154 +1,144 @@
 import SwiftUI
-
 import FamilyControls
-
 import ManagedSettings
 
 struct ConfigureActivitiesView: View {
     @StateObject private var shieldManager = ShieldManager.shared
     @StateObject private var passcodeManager = PasscodeManager.shared
     @EnvironmentObject var appIconStore: AppIconStore
+    @State private var showingAddActivity = false
+    @State private var isViewActive = false
     private let store = ManagedSettingsStore()
     
     var body: some View {
         NavigationView {
             Group {
-                if passcodeManager.isPasscodeEnabled && passcodeManager.isLocked {
-                    // Show passcode prompt if device is locked
+                if passcodeManager.isPasscodeEnabled && passcodeManager.isLocked && !isViewActive {
+                    // Show passcode prompt if device is locked AND view is not active
                     VStack {
                         PasscodePromptView()
                     }
-                    // .navigationTitle("Shield")
+                    .navigationTitle("Configure Activities")
                     .navigationBarTitleDisplayMode(.inline)
                 } else {
-                    // Show normal configure activities UI
-            List {
-                // Navigation Links Section
-                Section {
-                    NavigationLink(destination: ShieldCustomView()) {
-                        Text("Add Activity")
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
-                    }
-                    
-                    NavigationLink(destination: AppStatusView()) {
-                        Text("View App Status")
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.green)
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
-                    }
-                }
-                
-                // Status Section
-                Section(header: Text("Current Shield Status")) {
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text("Shielded Apps")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            Text("\(shieldManager.shieldedApplications.count)")
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .foregroundColor(.red)
-                        }
-                        
-                        Spacer()
-                        
-                        VStack(alignment: .trailing) {
-                            Text("Unshielded Apps")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            Text("\(shieldManager.unshieldedApplications.count)")
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .foregroundColor(.green)
-                        }
-                    }
-                    .padding(.vertical, 8)
-                }
-                
-                // Shielded Applications Section
-                Section(header: Text("Shielded Applications")) {
-                    if shieldManager.shieldedApplications.isEmpty {
-                        Text("No apps are currently shielded")
-                            .foregroundColor(.secondary)
-                            .italic()
-                    } else {
-                        ForEach(Array(shieldManager.shieldedApplications), id: \.id) { app in
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text(app.applicationName)
-                                        .font(.body)
-                                    Text("Permanently blocked")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                                Spacer()
-                                Button("Remove") {
-                                    shieldManager.removeApplicationFromShield(app)
-                                }
-                                .buttonStyle(.bordered)
-                                .foregroundColor(.red)
-                                .controlSize(.small)
+                    // Show simplified configure activities UI
+                    VStack(spacing: 0) {
+                        // Add Activity Button
+                        VStack(spacing: 16) {
+                            AddActivityButton {
+                                showingAddActivity = true
                             }
+                            .padding(.horizontal)
                         }
-                    }
-                }
-                
-                // Unshielded Applications Section
-                Section(header: Text("Temporarily Unshielded")) {
-                    if shieldManager.unshieldedApplications.isEmpty {
-                        Text("No apps are currently unshielded")
-                            .foregroundColor(.secondary)
-                            .italic()
-                    } else {
-                        ForEach(Array(shieldManager.unshieldedApplications), id: \.id) { app in
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text(app.applicationName)
-                                        .font(.body)
-                                    Text("Unlocked for \(app.durationMinutes) minutes")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    if !app.isExpired {
-                                        Text("Time remaining: \(app.formattedRemainingTime)")
-                                            .font(.caption2)
-                                            .foregroundColor(.orange)
-                                    } else {
-                                        Text("Expired - will be re-shielded")
-                                            .font(.caption2)
-                                            .foregroundColor(.red)
+                        .padding(.top)
+                        
+                        // App List
+                        ScrollView {
+                            LazyVStack(spacing: 16) {
+                                // Shielded Applications
+                                if !shieldManager.shieldedApplications.isEmpty {
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        Text("Restricted Apps")
+                                            .font(.headline)
+                                            .padding(.horizontal)
+                                        
+                                        LazyVStack(spacing: 8) {
+                                            ForEach(Array(shieldManager.shieldedApplications), id: \.id) { app in
+                                                AppStatusCard(
+                                                    appName: app.applicationName,
+                                                    isShielded: true,
+                                                    onRemove: {
+                                                        shieldManager.removeApplicationFromShield(app)
+                                                    },
+                                                    showDeleteButton: true  // Show delete for restricted apps
+                                                )
+                                            }
+                                        }
+                                        .padding(.horizontal)
                                     }
                                 }
-                                Spacer()
-                                if app.isExpired {
-                                    Button("Re-shield") {
-                                        shieldManager.reapplyShieldToExpiredApp(app)
+                                
+                                // Temporarily Unshielded Applications
+                                if !shieldManager.unshieldedApplications.isEmpty {
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        Text("Temporarily Unlocked")
+                                            .font(.headline)
+                                            .padding(.horizontal)
+                                        
+                                        LazyVStack(spacing: 8) {
+                                            ForEach(Array(shieldManager.unshieldedApplications), id: \.id) { app in
+                                                HStack {
+                                                    AppStatusCard(
+                                                        appName: app.applicationName,
+                                                        isShielded: false,
+                                                        onRemove: {
+                                                            if app.isExpired {
+                                                                shieldManager.reapplyShieldToExpiredApp(app)
+                                                            }
+                                                        },
+                                                        showDeleteButton: false  // Hide delete for temporarily unlocked apps
+                                                    )
+                                                    
+                                                    // Show remaining time or expired status
+                                                    VStack(alignment: .trailing, spacing: 4) {
+                                                        if !app.isExpired {
+                                                            Text("\(app.durationMinutes) min")
+                                                                .font(.caption)
+                                                                .foregroundColor(.blue)
+                                                            
+                                                            Text("\(app.formattedRemainingTime) left")
+                                                                .font(.caption2)
+                                                                .foregroundColor(.orange)
+                                                        } else {
+                                                            Text("Expired")
+                                                                .font(.caption)
+                                                                .foregroundColor(.red)
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        .padding(.horizontal)
                                     }
-                                    .buttonStyle(.bordered)
-                                    .controlSize(.small)
+                                }
+                                
+                                // Empty State
+                                if shieldManager.shieldedApplications.isEmpty && shieldManager.unshieldedApplications.isEmpty {
+                                    EmptyStateView(
+                                        title: "No Apps Configured",
+                                        message: "Add your first app to start managing screen time",
+                                        iconName: "app.badge.plus"
+                                    )
+                                    .padding(.top, 40)
                                 }
                             }
+                            .padding(.vertical)
                         }
+                    }
+                    .navigationTitle("Configure Activities")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .sheet(isPresented: $showingAddActivity) {
+                        ShieldCustomView()
+                    }
+                    .onAppear {
+                        // Mark view as active to prevent passcode prompt
+                        isViewActive = true
+                        
+                        // Refresh data when view appears
+                        shieldManager.refreshData()
+                        
+                        // Debug: Print current passcode state
+                        print("[ConfigureActivitiesView] Passcode enabled: \(passcodeManager.isPasscodeEnabled)")
+                        print("[ConfigureActivitiesView] Device locked: \(passcodeManager.isLocked)")
+                        print("[ConfigureActivitiesView] View active: \(isViewActive)")
+                    }
+                    .onDisappear {
+                        // Mark view as inactive when leaving
+                        isViewActive = false
+                        print("[ConfigureActivitiesView] View inactive: \(isViewActive)")
                     }
                 }
             }
-            .navigationTitle("Shield")
-            .onAppear {
-                // Refresh data when view appears
-                shieldManager.refreshData()
-                
-                // Debug: Print current passcode state
-                print("[ConfigureActivitiesView] Passcode enabled: \(passcodeManager.isPasscodeEnabled)")
-                print("[ConfigureActivitiesView] Device locked: \(passcodeManager.isLocked)")
-            }
-        }
-        }
         }
     }
 }
