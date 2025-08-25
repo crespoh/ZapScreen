@@ -19,16 +19,12 @@ class ShieldConfigurationExtension: ShieldConfigurationDataSource {
     var applicationProfile: ApplicationProfile!
     
     override func configuration(shielding application: Application) -> ShieldConfiguration {
-        // Get the application name and token
-//        let appName = application.localizedDisplayName ?? "Unknown App"
-//        let appBundle = application.bundleIdentifier ?? "Unknown Bundle"
-        
-//        createApplicationProfile(for: application.token!, withName: application.localizedDisplayName, withBundleId: application.bundleIdentifier)
-        // Customize the shield as needed for applications.
+
         return ShieldConfiguration(
             backgroundColor: .systemCyan,
             title: ShieldConfiguration.Label(text: "Do you really need to use this app?", color: .label),
-            subtitle: ShieldConfiguration.Label(text: "Like are you sure?", color: .systemBrown),
+//            subtitle: ShieldConfiguration.Label(text: "Like are you sure?", color: .systemBrown),
+            subtitle: ShieldConfiguration.Label(text: application.localizedDisplayName ?? "", color: .systemBrown),
             primaryButtonLabel: ShieldConfiguration.Label(text: "Unlock", color: .label),
             primaryButtonBackgroundColor: .systemGreen,
             secondaryButtonLabel: ShieldConfiguration.Label(text: "Don't unlock.", color: .label)
