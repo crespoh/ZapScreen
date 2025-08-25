@@ -107,11 +107,23 @@ struct ShieldCustomView: View {
                             let token = selection.applicationTokens.first
                             let applicationProfile = ApplicationProfile(applicationToken: token!, applicationName: appName)
                             
+                            print("[ShieldCustomView] Starting app shielding process for: \(appName)")
+                            print("[ShieldCustomView] Token: \(token!)")
+                            
+                            // Check current shield status before adding
+                            shieldManager.checkCurrentShieldStatus()
+                            
                             // Use the ShieldManager to add app to shield
                             shieldManager.addApplicationToShield(applicationProfile)
                             
                             // Apply shield immediately
                             shieldManager.shieldActivities()
+                            
+                            // Check shield status after adding
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                                print("[ShieldCustomView] Checking shield status after adding app...")
+                                shieldManager.checkCurrentShieldStatus()
+                            }
                             
                             print("[ShieldCustomView] App saved successfully: \(appName)")
                             

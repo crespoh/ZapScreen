@@ -131,6 +131,18 @@ struct ConfigureActivitiesView: View {
                         print("[ConfigureActivitiesView] Passcode enabled: \(passcodeManager.isPasscodeEnabled)")
                         print("[ConfigureActivitiesView] Device locked: \(passcodeManager.isLocked)")
                         print("[ConfigureActivitiesView] View active: \(isViewActive)")
+                        
+                        // Debug: Print current shield status
+                        print("[ConfigureActivitiesView] ====== Current UI State ======")
+                        print("[ConfigureActivitiesView] Shielded Apps Count: \(shieldManager.shieldedApplications.count)")
+                        for app in shieldManager.shieldedApplications {
+                            print("[ConfigureActivitiesView] Shielded App: \(app.applicationName)")
+                        }
+                        print("[ConfigureActivitiesView] Unshielded Apps Count: \(shieldManager.unshieldedApplications.count)")
+                        for app in shieldManager.unshieldedApplications {
+                            print("[ConfigureActivitiesView] Unshielded App: \(app.applicationName) - Expired: \(app.isExpired)")
+                        }
+                        print("[ConfigureActivitiesView] ====== UI State Complete ======")
                     }
                     .onDisappear {
                         // Mark view as inactive when leaving

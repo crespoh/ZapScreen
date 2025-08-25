@@ -45,6 +45,18 @@ class ShieldManager: ObservableObject {
     
     func shieldActivities() {
         print("[ShieldManager] shieldActivities() called")
+        
+        // Check authorization status first
+        let center = AuthorizationCenter.shared
+        let status = center.authorizationStatus
+        print("[ShieldManager] Current authorization status: \(status)")
+        
+        // Check if store.shield.applications is nil
+        if store.shield.applications == nil {
+            print("[ShieldManager] ⚠️ store.shield.applications is nil in shieldActivities - initializing")
+            store.shield.applications = Set<ApplicationToken>()
+        }
+        
         // Get all shielded apps from database
         let allShieldedApps = getShieldedApplications()
         print("[ShieldManager] Found \(allShieldedApps.count) shielded apps in database")
@@ -60,11 +72,27 @@ class ShieldManager: ObservableObject {
         for app in allShieldedApps {
             if !unshieldedTokens.contains(app.applicationToken) {
                 print("[ShieldManager] Applying shield to: \(app.applicationName)")
+                print("[ShieldManager] Token: \(app.applicationToken)")
                 store.shield.applications?.insert(app.applicationToken)
+                
+                // Verify insertion
+                if let currentShieldedApps = store.shield.applications {
+                    let isInserted = currentShieldedApps.contains(app.applicationToken)
+                    print("[ShieldManager] Shield verification for \(app.applicationName): \(isInserted)")
+                }
             } else {
                 print("[ShieldManager] Skipping shield for temporarily unshielded app: \(app.applicationName)")
             }
         }
+        
+        // Final verification
+        if let finalShieldedApps = store.shield.applications {
+            print("[ShieldManager] Final shielded apps count: \(finalShieldedApps.count)")
+            for token in finalShieldedApps {
+                print("[ShieldManager] Shielded token: \(token)")
+            }
+        }
+        
         print("[ShieldManager] shieldActivities() completed")
     }
     
@@ -72,9 +100,100 @@ class ShieldManager: ObservableObject {
     
     func addApplicationToShield(_ application: ApplicationProfile) {
         print("[ShieldManager] Adding application to shield: \(application.applicationName)")
+        
+        // Check if this is a parent device
+        let groupDefaults = UserDefaults(suiteName: "group.com.ntt.ZapScreen.data")
+        let selectedRole = groupDefaults?.string(forKey: "selectedRole")
+        let isParentDevice = selectedRole == "Parent"
+        
+        // Check if this is the first app being added
+        let isFirstApp = shieldedApplications.isEmpty
+        
+        if isParentDevice && isFirstApp {
+            // Check authorization status before adding first app (only for parent devices)
+            let center = AuthorizationCenter.shared
+            let status = center.authorizationStatus
+            
+            print("[ShieldManager] Parent device - First app being added - Authorization status: \(status)")
+            
+            switch status {
+            case .approved:
+                print("[ShieldManager] ✅ Authorization approved - proceeding with shield")
+                proceedWithAddingApp(application)
+                
+            case .denied:
+                print("[ShieldManager] ❌ Authorization denied - cannot add app to shield")
+                // Note: In a real app, you might want to show an alert to the user
+                // For now, we'll just log the error
+                return
+                
+            case .notDetermined:
+                print("[ShieldManager] ⚠️ Authorization not determined - requesting authorization")
+                Task {
+                    do {
+                        try await center.requestAuthorization(for: .individual)
+                        print("[ShieldManager] ✅ Authorization request completed")
+                        
+                        // Check status again after request
+                        let newStatus = center.authorizationStatus
+                        if newStatus == .approved {
+                            print("[ShieldManager] ✅ Authorization approved after request - proceeding with shield")
+                            await MainActor.run {
+                                proceedWithAddingApp(application)
+                            }
+                        } else {
+                            print("[ShieldManager] ❌ Authorization still not approved after request")
+                            // Note: In a real app, you might want to show an alert to the user
+                        }
+                    } catch {
+                        print("[ShieldManager] ❌ Authorization request failed: \(error)")
+                        // Note: In a real app, you might want to show an alert to the user
+                    }
+                }
+                return
+                
+            @unknown default:
+                print("[ShieldManager] ❓ Unknown authorization status - proceeding with caution")
+                proceedWithAddingApp(application)
+            }
+        } else {
+            // Not a parent device or not the first app, proceed normally
+            if !isParentDevice {
+                print("[ShieldManager] Child device - proceeding with shield without authorization check")
+            } else {
+                print("[ShieldManager] Not the first app - proceeding with shield")
+            }
+            proceedWithAddingApp(application)
+        }
+    }
+    
+    private func proceedWithAddingApp(_ application: ApplicationProfile) {
+        print("[ShieldManager] Proceeding with adding app to shield: \(application.applicationName)")
+        print("[ShieldManager] Application token: \(application.applicationToken)")
+        
+        // Add to database first
         database.addShieldedApplication(application)
+        print("[ShieldManager] ✅ App added to database")
+        
+        // Check if store.shield.applications is nil
+        if store.shield.applications == nil {
+            print("[ShieldManager] ⚠️ store.shield.applications is nil - initializing")
+            store.shield.applications = Set<ApplicationToken>()
+        }
+        
         // Apply shield immediately
+        print("[ShieldManager] Attempting to insert token into shield...")
         store.shield.applications?.insert(application.applicationToken)
+        
+        // Verify the insertion
+        if let currentShieldedApps = store.shield.applications {
+            let isInserted = currentShieldedApps.contains(application.applicationToken)
+            print("[ShieldManager] Shield verification - Token inserted: \(isInserted)")
+            print("[ShieldManager] Current shielded apps count: \(currentShieldedApps.count)")
+        } else {
+            print("[ShieldManager] ❌ store.shield.applications is still nil after initialization")
+        }
+        
         print("[ShieldManager] Shield applied to: \(application.applicationName)")
         
         // Send notification
@@ -335,5 +454,77 @@ class ShieldManager: ObservableObject {
         @unknown default:
             print("[ShieldManager] ❓ Unknown authorization status")
         }
+    }
+    
+    // Debug function to check current shield status
+    func checkCurrentShieldStatus() {
+        print("[ShieldManager] ====== Current Shield Status ======")
+        
+        // Check authorization
+        let center = AuthorizationCenter.shared
+        let status = center.authorizationStatus
+        print("[ShieldManager] Authorization Status: \(status)")
+        
+        // Check store.shield.applications
+        if let shieldedApps = store.shield.applications {
+            print("[ShieldManager] Store Shielded Apps Count: \(shieldedApps.count)")
+            for token in shieldedApps {
+                print("[ShieldManager] Shielded Token: \(token)")
+            }
+        } else {
+            print("[ShieldManager] ❌ store.shield.applications is nil")
+        }
+        
+        // Check database
+        let dbShieldedApps = getShieldedApplications()
+        print("[ShieldManager] Database Shielded Apps Count: \(dbShieldedApps.count)")
+        for app in dbShieldedApps {
+            print("[ShieldManager] Database App: \(app.applicationName) - Token: \(app.applicationToken)")
+        }
+        
+        // Check published properties
+        print("[ShieldManager] Published Shielded Apps Count: \(shieldedApplications.count)")
+        print("[ShieldManager] Published Unshielded Apps Count: \(unshieldedApplications.count)")
+        
+        // Check if shield is actually working
+        checkShieldEffectiveness()
+        
+        print("[ShieldManager] ====== Shield Status Complete ======")
+    }
+    
+    // Debug function to check if shield is actually working
+    private func checkShieldEffectiveness() {
+        print("[ShieldManager] ====== Shield Effectiveness Check ======")
+        
+        // Check if store.shield.applications is properly set
+        if let shieldedApps = store.shield.applications {
+            print("[ShieldManager] ✅ Store.shield.applications is set with \(shieldedApps.count) apps")
+            
+            // Check if the apps are actually being blocked
+            for token in shieldedApps {
+                print("[ShieldManager] Checking if token \(token) is being blocked...")
+                
+                // Try to check if the app is accessible (this is limited in iOS)
+                // We can only verify that the token is in the shield set
+                if shieldedApps.contains(token) {
+                    print("[ShieldManager] ✅ Token \(token) is in shield set - should be blocked")
+                } else {
+                    print("[ShieldManager] ❌ Token \(token) is NOT in shield set")
+                }
+            }
+        } else {
+            print("[ShieldManager] ❌ Store.shield.applications is nil - shield not working")
+        }
+        
+        // Check if there are any temporarily unshielded apps that might be interfering
+        let unshieldedApps = getUnshieldedApplications()
+        if !unshieldedApps.isEmpty {
+            print("[ShieldManager] ⚠️ Found \(unshieldedApps.count) temporarily unshielded apps:")
+            for app in unshieldedApps {
+                print("[ShieldManager] - \(app.applicationName) (Expired: \(app.isExpired))")
+            }
+        }
+        
+        print("[ShieldManager] ====== Shield Effectiveness Complete ======")
     }
 }
